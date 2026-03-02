@@ -3,6 +3,7 @@ name = "ucp-sdk"
 version = "2026.01.23"
 description = "UCP Python SDK"
 readme = "README.md"
+license-files = ["LICENSE"]
 authors = [
     { name = "Florin Iucha", email = "fiucha@google.com" },
     { name = "Federico D'Amato", email = "damaz@google.com" },
