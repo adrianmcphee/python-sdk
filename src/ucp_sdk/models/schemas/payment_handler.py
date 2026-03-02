@@ -18,38 +18,16 @@
 
 from __future__ import annotations
 
-from typing import Any
+from ._internal import Base_1 as Base
+from ._internal import BusinessSchema_1 as BusinessSchema
+from ._internal import PaymentHandler
+from ._internal import PlatformSchema_1 as PlatformSchema
+from ._internal import ResponseSchema_1 as ResponseSchema
 
-from pydantic import Field, RootModel
-
-
-class PaymentHandler(RootModel[Any]):
-    root: Any = Field(..., title="Payment Handler")
-    """
-    Schema for UCP payment handlers. Handlers define how payment instruments are processed.
-    """
-
-
-class PlatformSchema(RootModel[Any]):
-    root: Any = Field(..., title="Payment Handler (Platform Schema)")
-    """
-    Platform declaration for discovery profiles. May include partial config state required for discovery.
-    """
-
-
-class Base(RootModel[Any]):
-    root: Any
-
-
-class BusinessSchema(RootModel[Base]):
-    root: Base = Field(..., title="Payment Handler (Business Schema)")
-    """
-    Business declaration for discovery profiles. May include partial config state required for discovery.
-    """
-
-
-class ResponseSchema(RootModel[Base]):
-    root: Base = Field(..., title="Payment Handler (Response Schema)")
-    """
-    Handler reference in responses. May include full config state for runtime usage of the handler.
-    """
+__all__ = [
+    "Base",
+    "BusinessSchema",
+    "PaymentHandler",
+    "PlatformSchema",
+    "ResponseSchema",
+]

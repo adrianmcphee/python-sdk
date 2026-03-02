@@ -28,10 +28,9 @@ OUTPUT_DIR="src/ucp_sdk/models"
 
 # Schema directory (relative to this script)
 SCHEMA_DIR="ucp/source"
-TEMP_SCHEMA_DIR="temp_schemas"
 
 echo "Preprocessing schemas..."
-uv run python preprocess_schemas.py
+# uv run python preprocess_schemas.py
 
 echo "Generating Pydantic models from preprocessed schemas..."
 
@@ -55,7 +54,7 @@ uv run \
     --link-mode=copy \
     --extra-index-url https://pypi.org/simple python \
     -m datamodel_code_generator \
-    --input "$TEMP_SCHEMA_DIR" \
+    --input "$SCHEMA_DIR" \
     --input-file-type jsonschema \
     --output "$OUTPUT_DIR" \
     --output-model-type pydantic_v2.BaseModel \
@@ -72,7 +71,5 @@ echo "Formatting generated models..."
 uv run ruff format
 uv run ruff check --fix "$OUTPUT_DIR" 2>&1 | grep -E "^(All checks passed|Fixed|Found)" || echo "Formatting complete"
 
-# Clean up temporary schemas
-rm -rf "$TEMP_SCHEMA_DIR"
 
 echo "Done. Models generated in $OUTPUT_DIR"

@@ -22,6 +22,9 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, RootModel
 
+from .checkout import Checkout as Checkout_1
+from .types.buyer import Buyer as Buyer_1
+
 
 class BuyerConsentExtension(RootModel[Any]):
     root: Any = Field(..., title="Buyer Consent Extension")
@@ -53,4 +56,32 @@ class Consent(BaseModel):
     sale_of_data: bool | None = None
     """
     Consent for selling data to third parties (CCPA).
+    """
+
+
+class Buyer(Buyer_1):
+    """
+    Buyer object extended with consent tracking.
+    """
+
+    model_config = ConfigDict(
+        extra="allow",
+    )
+    consent: Consent | None = None
+    """
+    Consent tracking fields.
+    """
+
+
+class Checkout(Checkout_1):
+    """
+    Checkout extended with consent tracking via buyer object.
+    """
+
+    model_config = ConfigDict(
+        extra="allow",
+    )
+    buyer: Buyer | None = None
+    """
+    Buyer with consent tracking.
     """

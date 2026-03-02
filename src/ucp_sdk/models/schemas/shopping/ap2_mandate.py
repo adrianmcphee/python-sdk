@@ -22,6 +22,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, RootModel
 
+from .checkout import Checkout as Checkout_1
+
 
 class Ap2MandateExtension(RootModel[Any]):
     root: Any = Field(..., title="AP2 Mandate Extension")
@@ -80,6 +82,12 @@ class Ap2WithCheckoutMandate(BaseModel):
     """
 
 
+class Ap2(Ap2WithMerchantAuthorization, Ap2WithCheckoutMandate):
+    model_config = ConfigDict(
+        extra="allow",
+    )
+
+
 class ErrorCode(
     RootModel[
         Literal[
@@ -105,3 +113,14 @@ class ErrorCode(
     """
     Error codes specific to AP2 mandate verification.
     """
+
+
+class Checkout(Checkout_1):
+    """
+    Checkout extended with AP2 mandate support.
+    """
+
+    model_config = ConfigDict(
+        extra="allow",
+    )
+    ap2: Ap2 | None = None

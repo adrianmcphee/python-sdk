@@ -22,6 +22,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, RootModel
 
+from .checkout import Checkout as Checkout_1
+
 
 class DiscountExtension(RootModel[Any]):
     root: Any = Field(..., title="Discount Extension")
@@ -102,3 +104,14 @@ class DiscountsObject(BaseModel):
     """
     Discounts successfully applied (code-based and automatic).
     """
+
+
+class Checkout(Checkout_1):
+    """
+    Checkout extended with discount capability.
+    """
+
+    model_config = ConfigDict(
+        extra="allow",
+    )
+    discounts: DiscountsObject | None = None
