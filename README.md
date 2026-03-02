@@ -59,16 +59,14 @@ To regenerate the models:
 
 ```bash
 uv sync
-./generate_models.sh
+./generate_models.sh <version>
 ```
 
-By default, it uses the version `release-2026.01.23`. You can specify a different tag or branch as an argument:
+Where `<version>` is the version of the UCP specification to use (for example, "2026-01-23"). 
 
-```bash
-./generate_models.sh v2026.03.01
-```
+If no version is specified, the `main` branch of the [UCP repo](https://github.com/Universal-Commerce-Protocol/ucp) will be used.
 
-The latest version of the [UCP repo](https://github.com/Universal-Commerce-Protocol/ucp) is automatically downloaded and used to generate the models. The generated code is automatically formatted using `ruff`.
+The generated code is automatically formatted using `ruff`.
 
 ## Contributing
 
