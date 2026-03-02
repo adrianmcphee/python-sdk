@@ -18,20 +18,14 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, Field
-
-from . import item_create_request
+from pydantic import BaseModel, ConfigDict
 
 
-class LineItemCreateRequest(BaseModel):
-  """Line item object. Expected to use the currency of the parent object.
-  """
-
+class ItemCreateRequest(BaseModel):
   model_config = ConfigDict(
     extra="allow",
   )
-  item: item_create_request.ItemCreateRequest
-  quantity: int = Field(..., ge=1)
+  id: str
   """
-    Quantity of the item being purchased.
+    Should be recognized by both the Platform, and the Business. For Google it should match the id provided in the "id" field in the product feed.
     """

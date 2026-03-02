@@ -18,20 +18,13 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, Field
-
-from . import item_create_request
+from pydantic import BaseModel, ConfigDict
 
 
-class LineItemCreateRequest(BaseModel):
-  """Line item object. Expected to use the currency of the parent object.
+class FulfillmentAvailableMethodUpdateRequest(BaseModel):
+  """Inventory availability hint for a fulfillment method type.
   """
 
   model_config = ConfigDict(
     extra="allow",
   )
-  item: item_create_request.ItemCreateRequest
-  quantity: int = Field(..., ge=1)
-  """
-    Quantity of the item being purchased.
-    """

@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict
 
-from . import payment as payment_1
+from . import payment_complete_request
 
 
 class CheckoutCompleteRequest(BaseModel):
@@ -30,4 +30,4 @@ class CheckoutCompleteRequest(BaseModel):
   model_config = ConfigDict(
     extra="allow",
   )
-  payment: payment_1.Payment
+  payment: payment_complete_request.PaymentCompleteRequest

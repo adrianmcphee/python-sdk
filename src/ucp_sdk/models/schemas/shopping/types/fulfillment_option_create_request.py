@@ -18,20 +18,13 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, Field
-
-from . import item_create_request
+from pydantic import BaseModel, ConfigDict
 
 
-class LineItemCreateRequest(BaseModel):
-  """Line item object. Expected to use the currency of the parent object.
+class FulfillmentOptionCreateRequest(BaseModel):
+  """A fulfillment option within a group (e.g., Standard Shipping $5, Express $15).
   """
 
   model_config = ConfigDict(
     extra="allow",
   )
-  item: item_create_request.ItemCreateRequest
-  quantity: int = Field(..., ge=1)
-  """
-    Quantity of the item being purchased.
-    """

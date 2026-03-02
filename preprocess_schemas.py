@@ -18,37 +18,45 @@ from pathlib import Path
 import sys
 
 
-def process_file(schema_file, all_variant_needs):
-  """Analyzes a schema file to see which request variants it needs."""
-  try:
-    with open(schema_file, "r") as f:
-      schema = json.load(f)
-  except Exception as e:
-    print(f"Error loading {schema_file}: {e}")
-    return None
-
-  if (
-    not isinstance(schema, dict)
-    or schema.get("type") != "object"
-    or "properties" not in schema
-  ):
-    return None
-
-  ops_found = set()
-  for prop_name, prop_data in schema.get("properties", {}).items():
+def get_explicit_ops(schema):
+  """Finds ops explicitly mentioned in ucp_request fields."""
+  ops = set()
+  properties = schema.get("properties", {})
+  for prop_data in properties.values():
     if not isinstance(prop_data, dict):
       continue
     ucp_req = prop_data.get("ucp_request")
     if isinstance(ucp_req, str):
-      if ucp_req != "omit":
-        ops_found.update(["create", "update", "complete"])
+      # Strings like "omit" or "required" only imply standard ops.
+      # "complete" request should only be generated when it's explicitly defined in a dict.
+      ops.update(["create", "update"])
     elif isinstance(ucp_req, dict):
       for op in ucp_req:
-        ops_found.add(op)
+        ops.add(op)
+  return ops
 
-  if ops_found:
-    all_variant_needs[str(schema_file.resolve())] = ops_found
-  return schema
+
+def get_props_with_refs(schema, schema_file_path):
+  """Finds all external schema references associated with their properties."""
+  results = []  # list of (prop_name, abs_ref_path)
+
+  def find_refs(obj, prop_name):
+    if isinstance(obj, dict):
+      if "$ref" in obj:
+        ref = obj["$ref"]
+        if "#" not in ref:
+          ref_path = (schema_file_path.parent / ref).resolve()
+          results.append((prop_name, str(ref_path)))
+      for v in obj.values():
+        find_refs(v, prop_name)
+    elif isinstance(obj, list):
+      for item in obj:
+        find_refs(item, prop_name)
+
+  properties = schema.get("properties", {})
+  for prop_name, prop_data in properties.items():
+    find_refs(prop_data, prop_name)
+  return results
 
 
 def get_variant_filename(base_path, op):
@@ -140,14 +148,14 @@ def generate_variants(schema_file, schema, ops, all_variant_needs):
         if is_required:
           new_required.append(prop_name)
 
-    if new_properties:
-      variant_schema["properties"] = new_properties
-      variant_schema["required"] = new_required
+    # Always generate the variant schema to avoid breaking refs in parents
+    variant_schema["properties"] = new_properties
+    variant_schema["required"] = new_required
 
-      variant_path = get_variant_filename(schema_file_path, op)
-      with open(variant_path, "w") as f:
-        json.dump(variant_schema, f, indent=2)
-      print(f"Generated {variant_path}")
+    variant_path = get_variant_filename(schema_file_path, op)
+    with open(variant_path, "w") as f:
+      json.dump(variant_schema, f, indent=2)
+    print(f"Generated {variant_path}")
 
 
 def main():
@@ -162,16 +170,75 @@ def main():
 
   all_files = list(schema_dir_path.rglob("*.json"))
 
-  all_variant_needs = {}
   schemas_cache = {}
+  schema_props_refs = {}
+  all_variant_needs = {}
 
+  # 1. First pass: load all schemas and find properties with refs
   for f in all_files:
     if "_request.json" in f.name:
       continue
-    s = process_file(f, all_variant_needs)
-    if s:
-      schemas_cache[str(f.resolve())] = s
+    try:
+      with open(f, "r") as open_f:
+        schema = json.load(open_f)
+        if (
+          not isinstance(schema, dict)
+          or schema.get("type") != "object"
+          or "properties" not in schema
+        ):
+          continue
 
+        abs_path = str(f.resolve())
+        schemas_cache[abs_path] = schema
+        schema_props_refs[abs_path] = get_props_with_refs(schema, f)
+
+        # 2. Get explicit needs defined in the schema itself
+        explicit_ops = get_explicit_ops(schema)
+        if explicit_ops:
+          all_variant_needs[abs_path] = explicit_ops
+    except Exception as e:
+      print(f"Error processing {f}: {e}")
+
+  # 3. Transitive dependency tracking (Parent -> Child):
+  # If P needs variant OP, and P includes property S (not omitted for OP),
+  # then S also needs variant OP to ensure ref matching works correctly.
+  changed = True
+  while changed:
+    changed = False
+    for abs_path, props_refs in schema_props_refs.items():
+      if abs_path not in all_variant_needs:
+        continue
+
+      parent_schema = schemas_cache[abs_path]
+      parent_ops = all_variant_needs[abs_path]
+
+      for op in list(parent_ops):
+        for prop_name, ref_path in props_refs:
+          if ref_path not in schemas_cache:
+            continue
+
+          # Check if this property is omitted for this op in parent
+          prop_data = parent_schema["properties"].get(prop_name, {})
+          ucp_req = prop_data.get("ucp_request")
+
+          include = True
+          if ucp_req is not None:
+            if isinstance(ucp_req, str):
+              if ucp_req == "omit":
+                include = False
+            elif isinstance(ucp_req, dict):
+              op_val = ucp_req.get(op)
+              if op_val == "omit" or op_val is None:
+                include = False
+
+          if include:
+            # Propagate op from parent to child
+            child_needs = all_variant_needs.get(ref_path, set())
+            if op not in child_needs:
+              all_variant_needs.setdefault(ref_path, set()).add(op)
+              changed = True
+
+  # 4. Final pass: generate variants
   for f_abs, ops in all_variant_needs.items():
     generate_variants(f_abs, schemas_cache[f_abs], ops, all_variant_needs)
 

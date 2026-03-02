@@ -18,20 +18,19 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict
 
-from . import item_create_request
+from .types import payment_instrument
 
 
-class LineItemCreateRequest(BaseModel):
-  """Line item object. Expected to use the currency of the parent object.
+class PaymentCreateRequest(BaseModel):
+  """Payment configuration containing handlers.
   """
 
   model_config = ConfigDict(
     extra="allow",
   )
-  item: item_create_request.ItemCreateRequest
-  quantity: int = Field(..., ge=1)
+  instruments: list[payment_instrument.SelectedPaymentInstrument] | None = None
   """
-    Quantity of the item being purchased.
+    The payment instruments available for this payment. Each instrument is associated with a specific handler via the handler_id field. Handlers can extend the base payment_instrument schema to add handler-specific fields.
     """

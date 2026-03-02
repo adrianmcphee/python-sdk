@@ -18,20 +18,26 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, Field
-
-from . import item_create_request
+from pydantic import BaseModel, ConfigDict
 
 
-class LineItemCreateRequest(BaseModel):
-  """Line item object. Expected to use the currency of the parent object.
-  """
-
+class BuyerCreateRequest(BaseModel):
   model_config = ConfigDict(
     extra="allow",
   )
-  item: item_create_request.ItemCreateRequest
-  quantity: int = Field(..., ge=1)
+  first_name: str | None = None
   """
-    Quantity of the item being purchased.
+    First name of the buyer.
+    """
+  last_name: str | None = None
+  """
+    Last name of the buyer.
+    """
+  email: str | None = None
+  """
+    Email of the buyer.
+    """
+  phone_number: str | None = None
+  """
+    E.164 standard.
     """

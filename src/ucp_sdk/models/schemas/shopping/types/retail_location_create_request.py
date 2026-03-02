@@ -18,20 +18,25 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict
 
-from . import item_create_request
+from . import postal_address_create_request
 
 
-class LineItemCreateRequest(BaseModel):
-  """Line item object. Expected to use the currency of the parent object.
+class RetailLocationCreateRequest(BaseModel):
+  """A pickup location (retail store, locker, etc.).
   """
 
   model_config = ConfigDict(
     extra="allow",
   )
-  item: item_create_request.ItemCreateRequest
-  quantity: int = Field(..., ge=1)
+  name: str
   """
-    Quantity of the item being purchased.
+    Location name (e.g., store name).
+    """
+  address: postal_address_create_request.PostalAddressCreateRequest | None = (
+    None
+  )
+  """
+    Physical address of the location.
     """

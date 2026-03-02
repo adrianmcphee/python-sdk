@@ -20,10 +20,12 @@ from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict
 
-from . import payment as payment_1
-from .types import buyer as buyer_1
-from .types import context as context_1
-from .types import line_item_create_request
+from . import payment_create_request
+from .types import (
+  buyer_create_request,
+  context_create_request,
+  line_item_create_request,
+)
 
 
 class CheckoutCreateRequest(BaseModel):
@@ -37,9 +39,9 @@ class CheckoutCreateRequest(BaseModel):
   """
     List of line items being checked out.
     """
-  buyer: buyer_1.Buyer | None = None
+  buyer: buyer_create_request.BuyerCreateRequest | None = None
   """
     Representation of the buyer.
     """
-  context: context_1.Context | None = None
-  payment: payment_1.Payment | None = None
+  context: context_create_request.ContextCreateRequest | None = None
+  payment: payment_create_request.PaymentCreateRequest | None = None
