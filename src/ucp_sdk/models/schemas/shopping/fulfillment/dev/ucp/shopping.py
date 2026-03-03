@@ -24,7 +24,7 @@ from pydantic import ConfigDict, RootModel
 
 
 class Fulfillment(RootModel[Any]):
-  model_config = ConfigDict(
-    frozen=True,
-  )
-  root: Any
+    model_config = ConfigDict(
+        frozen=True,
+    )
+    root: Any

@@ -22,13 +22,14 @@ from pydantic import BaseModel, ConfigDict
 
 
 class FulfillmentGroupCreateRequest(BaseModel):
-  """A merchant-generated package/group of line items with fulfillment options.
-  """
+    """
+    A merchant-generated package/group of line items with fulfillment options.
+    """
 
-  model_config = ConfigDict(
-    extra="allow",
-  )
-  selected_option_id: str | None = None
-  """
+    model_config = ConfigDict(
+        extra="allow",
+    )
+    selected_option_id: str | None = None
+    """
     ID of the selected fulfillment option for this group.
     """

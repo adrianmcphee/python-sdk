@@ -24,14 +24,15 @@ from . import item_create_request
 
 
 class LineItemCreateRequest(BaseModel):
-  """Line item object. Expected to use the currency of the parent object.
-  """
+    """
+    Line item object. Expected to use the currency of the parent object.
+    """
 
-  model_config = ConfigDict(
-    extra="allow",
-  )
-  item: item_create_request.ItemCreateRequest
-  quantity: int = Field(..., ge=1)
-  """
+    model_config = ConfigDict(
+        extra="allow",
+    )
+    item: item_create_request.ItemCreateRequest
+    quantity: int = Field(..., ge=1)
+    """
     Quantity of the item being purchased.
     """

@@ -24,19 +24,20 @@ from . import postal_address_create_request
 
 
 class RetailLocationCreateRequest(BaseModel):
-  """A pickup location (retail store, locker, etc.).
-  """
+    """
+    A pickup location (retail store, locker, etc.).
+    """
 
-  model_config = ConfigDict(
-    extra="allow",
-  )
-  name: str
-  """
+    model_config = ConfigDict(
+        extra="allow",
+    )
+    name: str
+    """
     Location name (e.g., store name).
     """
-  address: postal_address_create_request.PostalAddressCreateRequest | None = (
-    None
-  )
-  """
+    address: postal_address_create_request.PostalAddressCreateRequest | None = (
+        None
+    )
+    """
     Physical address of the location.
     """

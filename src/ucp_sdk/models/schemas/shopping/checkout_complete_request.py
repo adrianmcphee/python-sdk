@@ -24,10 +24,11 @@ from . import payment_complete_request
 
 
 class CheckoutCompleteRequest(BaseModel):
-  """Base checkout schema. Extensions compose onto this using allOf.
-  """
+    """
+    Base checkout schema. Extensions compose onto this using allOf.
+    """
 
-  model_config = ConfigDict(
-    extra="allow",
-  )
-  payment: payment_complete_request.PaymentCompleteRequest
+    model_config = ConfigDict(
+        extra="allow",
+    )
+    payment: payment_complete_request.PaymentCompleteRequest

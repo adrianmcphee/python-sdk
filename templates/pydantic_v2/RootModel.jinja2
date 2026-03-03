@@ -19,7 +19,7 @@
 class {{ class_name }}({{ base_class }}{%- if fields -%}[{{get_type_hint(fields, use_base_type)}}]{%- endif -%}):{% if comment is defined %}  # {{ comment }}{% endif %}
 {%- if description %}
     """
-    {{ description | escape_docstring | indent(4) }}
+    {{ description | escape_docstring }}
     """
 {%- endif %}
 {%- if config %}
@@ -59,7 +59,7 @@ model_config = ConfigDict(
     {%- endif %}
     {%- if field.docstring %}
     """
-    {{ field.docstring | escape_docstring | indent(4) }}
+    {{ field.docstring | escape_docstring }}
     """
     {%- elif field.inline_field_docstring %}
     {{ field.inline_field_docstring }}

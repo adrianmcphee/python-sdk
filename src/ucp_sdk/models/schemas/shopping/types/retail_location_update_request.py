@@ -24,19 +24,20 @@ from . import postal_address_update_request
 
 
 class RetailLocationUpdateRequest(BaseModel):
-  """A pickup location (retail store, locker, etc.).
-  """
+    """
+    A pickup location (retail store, locker, etc.).
+    """
 
-  model_config = ConfigDict(
-    extra="allow",
-  )
-  name: str
-  """
+    model_config = ConfigDict(
+        extra="allow",
+    )
+    name: str
+    """
     Location name (e.g., store name).
     """
-  address: postal_address_update_request.PostalAddressUpdateRequest | None = (
-    None
-  )
-  """
+    address: postal_address_update_request.PostalAddressUpdateRequest | None = (
+        None
+    )
+    """
     Physical address of the location.
     """

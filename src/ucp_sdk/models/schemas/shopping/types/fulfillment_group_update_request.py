@@ -22,17 +22,18 @@ from pydantic import BaseModel, ConfigDict
 
 
 class FulfillmentGroupUpdateRequest(BaseModel):
-  """A merchant-generated package/group of line items with fulfillment options.
-  """
+    """
+    A merchant-generated package/group of line items with fulfillment options.
+    """
 
-  model_config = ConfigDict(
-    extra="allow",
-  )
-  id: str
-  """
+    model_config = ConfigDict(
+        extra="allow",
+    )
+    id: str
+    """
     Group identifier for referencing merchant-generated groups in updates.
     """
-  selected_option_id: str | None = None
-  """
+    selected_option_id: str | None = None
+    """
     ID of the selected fulfillment option for this group.
     """

@@ -22,9 +22,10 @@ from pydantic import BaseModel, ConfigDict
 
 
 class FulfillmentAvailableMethodUpdateRequest(BaseModel):
-  """Inventory availability hint for a fulfillment method type.
-  """
+    """
+    Inventory availability hint for a fulfillment method type.
+    """
 
-  model_config = ConfigDict(
-    extra="allow",
-  )
+    model_config = ConfigDict(
+        extra="allow",
+    )

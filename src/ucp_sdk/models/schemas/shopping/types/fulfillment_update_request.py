@@ -24,16 +24,17 @@ from . import fulfillment_method_update_request
 
 
 class FulfillmentUpdateRequest(BaseModel):
-  """Container for fulfillment methods and availability.
-  """
+    """
+    Container for fulfillment methods and availability.
+    """
 
-  model_config = ConfigDict(
-    extra="allow",
-  )
-  methods: (
-    list[fulfillment_method_update_request.FulfillmentMethodUpdateRequest]
-    | None
-  ) = None
-  """
+    model_config = ConfigDict(
+        extra="allow",
+    )
+    methods: (
+        list[fulfillment_method_update_request.FulfillmentMethodUpdateRequest]
+        | None
+    ) = None
+    """
     Fulfillment methods for cart items.
     """

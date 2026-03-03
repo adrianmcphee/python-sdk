@@ -22,6 +22,6 @@ from pydantic import BaseModel, ConfigDict
 
 
 class TotalUpdateRequest(BaseModel):
-  model_config = ConfigDict(
-    extra="allow",
-  )
+    model_config = ConfigDict(
+        extra="allow",
+    )

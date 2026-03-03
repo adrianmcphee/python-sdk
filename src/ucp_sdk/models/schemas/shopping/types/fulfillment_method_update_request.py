@@ -21,42 +21,44 @@ from __future__ import annotations
 from pydantic import BaseModel, ConfigDict
 
 from . import (
-  fulfillment_destination_update_request,
-  fulfillment_group_update_request,
+    fulfillment_destination_update_request,
+    fulfillment_group_update_request,
 )
 
 
 class FulfillmentMethodUpdateRequest(BaseModel):
-  """A fulfillment method (shipping or pickup) with destinations and groups.
-  """
+    """
+    A fulfillment method (shipping or pickup) with destinations and groups.
+    """
 
-  model_config = ConfigDict(
-    extra="allow",
-  )
-  id: str
-  """
+    model_config = ConfigDict(
+        extra="allow",
+    )
+    id: str
+    """
     Unique fulfillment method identifier.
     """
-  line_item_ids: list[str]
-  """
+    line_item_ids: list[str]
+    """
     Line item IDs fulfilled via this method.
     """
-  destinations: (
-    list[
-      fulfillment_destination_update_request.FulfillmentDestinationUpdateRequest
-    ]
-    | None
-  ) = None
-  """
+    destinations: (
+        list[
+            fulfillment_destination_update_request.FulfillmentDestinationUpdateRequest
+        ]
+        | None
+    ) = None
+    """
     Available destinations. For shipping: addresses. For pickup: retail locations.
     """
-  selected_destination_id: str | None = None
-  """
+    selected_destination_id: str | None = None
+    """
     ID of the selected destination.
     """
-  groups: (
-    list[fulfillment_group_update_request.FulfillmentGroupUpdateRequest] | None
-  ) = None
-  """
+    groups: (
+        list[fulfillment_group_update_request.FulfillmentGroupUpdateRequest]
+        | None
+    ) = None
+    """
     Fulfillment groups for selecting options. Agent sets selected_option_id on groups to choose shipping method.
     """

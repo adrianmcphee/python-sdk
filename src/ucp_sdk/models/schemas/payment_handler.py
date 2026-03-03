@@ -24,70 +24,73 @@ from pydantic import AnyUrl, BaseModel, ConfigDict, Field, RootModel
 
 
 class PaymentHandler(RootModel[Any]):
-  model_config = ConfigDict(
-    frozen=True,
-  )
-  root: Any = Field(..., title="Payment Handler")
-  """
+    model_config = ConfigDict(
+        frozen=True,
+    )
+    root: Any = Field(..., title="Payment Handler")
+    """
     Schema for UCP payment handlers. Handlers define how payment instruments are processed.
     """
 
 
 class Version(RootModel[Any]):
-  model_config = ConfigDict(
-    frozen=True,
-  )
-  root: Any
+    model_config = ConfigDict(
+        frozen=True,
+    )
+    root: Any
 
 
 class Base(BaseModel):
-  model_config = ConfigDict(
-    extra="allow",
-  )
-  version: Version
-  """
+    model_config = ConfigDict(
+        extra="allow",
+    )
+    version: Version
+    """
     Entity version in YYYY-MM-DD format.
     """
-  spec: AnyUrl | None = None
-  """
+    spec: AnyUrl | None = None
+    """
     URL to human-readable specification document.
     """
-  schema_: AnyUrl | None = Field(None, alias="schema")
-  """
+    schema_: AnyUrl | None = Field(None, alias="schema")
+    """
     URL to JSON Schema defining this entity's structure and payloads.
     """
-  id: str
-  """
+    id: str
+    """
     Unique identifier for this entity instance. Used to disambiguate when multiple instances exist.
     """
-  config: dict[str, Any] | None = None
-  """
+    config: dict[str, Any] | None = None
+    """
     Entity-specific configuration. Structure defined by each entity's schema.
     """
 
 
 class PlatformSchema(Base):
-  """Platform declaration for discovery profiles. May include partial config state required for discovery.
-  """
+    """
+    Platform declaration for discovery profiles. May include partial config state required for discovery.
+    """
 
-  model_config = ConfigDict(
-    extra="allow",
-  )
+    model_config = ConfigDict(
+        extra="allow",
+    )
 
 
 class BusinessSchema(Base):
-  """Business declaration for discovery profiles. May include partial config state required for discovery.
-  """
+    """
+    Business declaration for discovery profiles. May include partial config state required for discovery.
+    """
 
-  model_config = ConfigDict(
-    extra="allow",
-  )
+    model_config = ConfigDict(
+        extra="allow",
+    )
 
 
 class ResponseSchema(Base):
-  """Handler reference in responses. May include full config state for runtime usage of the handler.
-  """
+    """
+    Handler reference in responses. May include full config state for runtime usage of the handler.
+    """
 
-  model_config = ConfigDict(
-    extra="allow",
-  )
+    model_config = ConfigDict(
+        extra="allow",
+    )

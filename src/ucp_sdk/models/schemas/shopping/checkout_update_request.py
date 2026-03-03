@@ -22,30 +22,31 @@ from pydantic import BaseModel, ConfigDict
 
 from . import payment_update_request
 from .types import (
-  buyer_update_request,
-  context_update_request,
-  line_item_update_request,
+    buyer_update_request,
+    context_update_request,
+    line_item_update_request,
 )
 
 
 class CheckoutUpdateRequest(BaseModel):
-  """Base checkout schema. Extensions compose onto this using allOf.
-  """
+    """
+    Base checkout schema. Extensions compose onto this using allOf.
+    """
 
-  model_config = ConfigDict(
-    extra="allow",
-  )
-  id: str
-  """
+    model_config = ConfigDict(
+        extra="allow",
+    )
+    id: str
+    """
     Unique identifier of the checkout session.
     """
-  line_items: list[line_item_update_request.LineItemUpdateRequest]
-  """
+    line_items: list[line_item_update_request.LineItemUpdateRequest]
+    """
     List of line items being checked out.
     """
-  buyer: buyer_update_request.BuyerUpdateRequest | None = None
-  """
+    buyer: buyer_update_request.BuyerUpdateRequest | None = None
+    """
     Representation of the buyer.
     """
-  context: context_update_request.ContextUpdateRequest | None = None
-  payment: payment_update_request.PaymentUpdateRequest | None = None
+    context: context_update_request.ContextUpdateRequest | None = None
+    payment: payment_update_request.PaymentUpdateRequest | None = None

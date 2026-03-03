@@ -24,20 +24,20 @@ from . import message_error, message_info, message_warning
 
 
 class Message(
-  RootModel[
-    message_error.MessageError
-    | message_warning.MessageWarning
-    | message_info.MessageInfo
-  ]
+    RootModel[
+        message_error.MessageError
+        | message_warning.MessageWarning
+        | message_info.MessageInfo
+    ]
 ):
-  model_config = ConfigDict(
-    frozen=True,
-  )
-  root: (
-    message_error.MessageError
-    | message_warning.MessageWarning
-    | message_info.MessageInfo
-  ) = Field(..., title="Message")
-  """
+    model_config = ConfigDict(
+        frozen=True,
+    )
+    root: (
+        message_error.MessageError
+        | message_warning.MessageWarning
+        | message_info.MessageInfo
+    ) = Field(..., title="Message")
+    """
     Container for error, warning, or info messages.
     """

@@ -22,9 +22,10 @@ from pydantic import BaseModel, ConfigDict
 
 
 class FulfillmentOptionCreateRequest(BaseModel):
-  """A fulfillment option within a group (e.g., Standard Shipping $5, Express $15).
-  """
+    """
+    A fulfillment option within a group (e.g., Standard Shipping $5, Express $15).
+    """
 
-  model_config = ConfigDict(
-    extra="allow",
-  )
+    model_config = ConfigDict(
+        extra="allow",
+    )

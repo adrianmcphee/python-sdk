@@ -22,26 +22,27 @@ from pydantic import BaseModel, ConfigDict
 
 from . import payment_create_request
 from .types import (
-  buyer_create_request,
-  context_create_request,
-  line_item_create_request,
+    buyer_create_request,
+    context_create_request,
+    line_item_create_request,
 )
 
 
 class CheckoutCreateRequest(BaseModel):
-  """Base checkout schema. Extensions compose onto this using allOf.
-  """
+    """
+    Base checkout schema. Extensions compose onto this using allOf.
+    """
 
-  model_config = ConfigDict(
-    extra="allow",
-  )
-  line_items: list[line_item_create_request.LineItemCreateRequest]
-  """
+    model_config = ConfigDict(
+        extra="allow",
+    )
+    line_items: list[line_item_create_request.LineItemCreateRequest]
+    """
     List of line items being checked out.
     """
-  buyer: buyer_create_request.BuyerCreateRequest | None = None
-  """
+    buyer: buyer_create_request.BuyerCreateRequest | None = None
+    """
     Representation of the buyer.
     """
-  context: context_create_request.ContextCreateRequest | None = None
-  payment: payment_create_request.PaymentCreateRequest | None = None
+    context: context_create_request.ContextCreateRequest | None = None
+    payment: payment_create_request.PaymentCreateRequest | None = None

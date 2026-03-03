@@ -22,10 +22,10 @@ from pydantic import BaseModel, ConfigDict
 
 
 class ItemCreateRequest(BaseModel):
-  model_config = ConfigDict(
-    extra="allow",
-  )
-  id: str
-  """
+    model_config = ConfigDict(
+        extra="allow",
+    )
+    id: str
+    """
     Should be recognized by both the Platform, and the Business. For Google it should match the id provided in the "id" field in the product feed.
     """

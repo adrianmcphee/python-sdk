@@ -24,19 +24,20 @@ from . import item_update_request
 
 
 class LineItemUpdateRequest(BaseModel):
-  """Line item object. Expected to use the currency of the parent object.
-  """
+    """
+    Line item object. Expected to use the currency of the parent object.
+    """
 
-  model_config = ConfigDict(
-    extra="allow",
-  )
-  id: str | None = None
-  item: item_update_request.ItemUpdateRequest
-  quantity: int = Field(..., ge=1)
-  """
+    model_config = ConfigDict(
+        extra="allow",
+    )
+    id: str | None = None
+    item: item_update_request.ItemUpdateRequest
+    quantity: int = Field(..., ge=1)
+    """
     Quantity of the item being purchased.
     """
-  parent_id: str | None = None
-  """
+    parent_id: str | None = None
+    """
     Parent line item identifier for any nested structures.
     """
