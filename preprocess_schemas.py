@@ -19,29 +19,32 @@ import sys
 
 
 def flatten_entity(schema, entity_def):
-    """Recursively replaces refs to 'ucp.json#/$defs/entity' with the actual schema to flatten inheritance."""
-    if isinstance(schema, dict):
-        if "allOf" in schema:
-            new_all_of = []
-            for item in schema["allOf"]:
-                if isinstance(item, dict) and item.get("$ref", "").endswith(
-                    "ucp.json#/$defs/entity"
-                ):
-                    # Replace with a copy of entity_def, removing title/description to avoid creating a named class
-                    e_copy = copy.deepcopy(entity_def)
-                    e_copy.pop("title", None)
-                    e_copy.pop("description", None)
-                    new_all_of.append(e_copy)
-                else:
-                    flatten_entity(item, entity_def)
-                    new_all_of.append(item)
-            schema["allOf"] = new_all_of
-        else:
-            for v in schema.values():
-                flatten_entity(v, entity_def)
-    elif isinstance(schema, list):
-        for item in schema:
-            flatten_entity(item, entity_def)
+    """Iteratively replaces refs to 'ucp.json#/$defs/entity' with the actual schema to flatten inheritance."""
+    stack = [schema]
+    while stack:
+        current = stack.pop()
+        if isinstance(current, dict):
+            if "allOf" in current:
+                new_all_of = []
+                for item in current["allOf"]:
+                    if isinstance(item, dict) and item.get("$ref", "").endswith(
+                        "ucp.json#/$defs/entity"
+                    ):
+                        # Replace with a copy of entity_def, removing title/description to avoid creating a named class
+                        e_copy = copy.deepcopy(entity_def)
+                        e_copy.pop("title", None)
+                        e_copy.pop("description", None)
+                        new_all_of.append(e_copy)
+                    else:
+                        new_all_of.append(item)
+                        stack.append(item)
+                current["allOf"] = new_all_of
+            else:
+                for v in current.values():
+                    stack.append(v)
+        elif isinstance(current, list):
+            for item in current:
+                stack.append(item)
 
 
 def get_explicit_ops(schema):
@@ -66,22 +69,22 @@ def get_props_with_refs(schema, schema_file_path):
     """Finds all external schema references associated with their properties."""
     results = []  # list of (prop_name, abs_ref_path)
 
-    def find_refs(obj, prop_name):
-        if isinstance(obj, dict):
-            if "$ref" in obj:
-                ref = obj["$ref"]
-                if "#" not in ref:
-                    ref_path = (schema_file_path.parent / ref).resolve()
-                    results.append((prop_name, str(ref_path)))
-            for v in obj.values():
-                find_refs(v, prop_name)
-        elif isinstance(obj, list):
-            for item in obj:
-                find_refs(item, prop_name)
-
     properties = schema.get("properties", {})
     for prop_name, prop_data in properties.items():
-        find_refs(prop_data, prop_name)
+        stack = [prop_data]
+        while stack:
+            obj = stack.pop()
+            if isinstance(obj, dict):
+                if "$ref" in obj:
+                    ref = obj["$ref"]
+                    if "#" not in ref:
+                        ref_path = (schema_file_path.parent / ref).resolve()
+                        results.append((prop_name, str(ref_path)))
+                for v in obj.values():
+                    stack.append(v)
+            elif isinstance(obj, list):
+                for item in obj:
+                    stack.append(item)
     return results
 
 
@@ -148,8 +151,10 @@ def generate_variants(schema_file, schema, ops, all_variant_needs):
                 if "ucp_request" in prop_copy:
                     del prop_copy["ucp_request"]
 
-                # Recursive reference check (deep)
-                def update_refs(obj):
+                # Iterative reference check (deep)
+                stack = [prop_copy]
+                while stack:
+                    obj = stack.pop()
                     if isinstance(obj, dict):
                         if "$ref" in obj:
                             ref = obj["$ref"]
@@ -169,13 +174,11 @@ def generate_variants(schema_file, schema, ops, all_variant_needs):
                                     obj["$ref"] = str(
                                         ref_path.parent / variant_ref_filename
                                     )
-                        for k, v in obj.items():
-                            update_refs(v)
+                        for v in obj.values():
+                            stack.append(v)
                     elif isinstance(obj, list):
                         for item in obj:
-                            update_refs(item)
-
-                update_refs(prop_copy)
+                            stack.append(item)
 
                 new_properties[prop_name] = prop_copy
                 if is_required:
