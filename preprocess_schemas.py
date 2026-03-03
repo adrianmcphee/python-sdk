@@ -17,340 +17,516 @@ import copy
 from pathlib import Path
 import sys
 
+# --- I/O Helpers ---
 
-def flatten_entity(schema, entity_def):
-    """Iteratively replaces refs to 'ucp.json#/$defs/entity' with the actual schema to flatten inheritance."""
-    stack = [schema]
+
+def load_json(path):
+    """Loads JSON data from a file."""
+    with open(path, "r") as f:
+        return json.load(f)
+
+
+def save_json(data, path):
+    """Saves data to a JSON file with standard indentation."""
+    with open(path, "w") as f:
+        json.dump(data, f, indent=2)
+
+
+# --- Traversal Helper ---
+
+
+def iter_nodes(root):
+    """
+    Iteratively yields all dictionary or list nodes in a JSON tree.
+    This replaces multiple manual stack-walking implementations.
+    """
+    stack = [root]
+    visited = {id(root)}
     while stack:
-        current = stack.pop()
-        if isinstance(current, dict):
-            if "allOf" in current:
-                new_all_of = []
-                for item in current["allOf"]:
-                    if isinstance(item, dict) and item.get("$ref", "").endswith(
-                        "ucp.json#/$defs/entity"
-                    ):
-                        # Replace with a copy of entity_def, removing title/description to avoid creating a named class
-                        e_copy = copy.deepcopy(entity_def)
-                        e_copy.pop("title", None)
-                        e_copy.pop("description", None)
-                        new_all_of.append(e_copy)
-                    else:
-                        new_all_of.append(item)
-                        stack.append(item)
-                current["allOf"] = new_all_of
+        curr = stack.pop()
+        yield curr
+
+        # Identify children for the next iteration
+        children = []
+        if isinstance(curr, dict):
+            children = curr.values()
+        elif isinstance(curr, list):
+            children = curr
+
+        for child in children:
+            if isinstance(child, (dict, list)) and id(child) not in visited:
+                visited.add(id(child))
+                stack.append(child)
+
+
+# --- Reference Resolution ---
+
+
+def resolve_local_ref(ref, root):
+    """
+    Resolves a local JSON pointer (e.g., #/$defs/name) within the same document.
+    Returns the resolved schema fragment or None if invalid.
+    """
+    if not isinstance(ref, str) or not ref.startswith("#/"):
+        return None
+
+    parts = ref.split("/")
+    current = root
+    for part in parts[1:]:
+        if isinstance(current, dict) and part in current:
+            current = current[part]
+        elif isinstance(current, list) and part.isdigit():
+            idx = int(part)
+            if 0 <= idx < len(current):
+                current = current[idx]
             else:
-                for v in current.values():
-                    stack.append(v)
-        elif isinstance(current, list):
-            for item in current:
-                stack.append(item)
+                return None
+        else:
+            return None
+    return current
 
 
-def get_explicit_ops(schema):
-    """Finds ops explicitly mentioned in ucp_request fields."""
+# --- Schema Normalization and Flattening ---
+
+
+def merge_all_of_to_node(node, root):
+    """
+    Merges 'allOf' components into the node itself.
+
+    RATIONALE: Code generators (like datamodel-codegen) often create cleaner Pydantic
+    models if inheritance is flattened at the schema level rather than relying on
+    complex 'allOf' chains which can lead to redundant intermediate classes.
+    """
+    if "allOf" not in node:
+        return
+
+    all_of_sources = node.pop("allOf")
+    merged_properties = {}
+    merged_required = []
+    poly_branches = {}
+    remaining_refs = []
+
+    for item in all_of_sources:
+        # Resolve local references (internal inheritance) before merging
+        if isinstance(item, dict) and "$ref" in item:
+            resolved = resolve_local_ref(item["$ref"], root)
+            if resolved:
+                item = copy.deepcopy(resolved)
+            else:
+                # Keep external refs; we'll handle them in variant generation if needed
+                remaining_refs.append(item)
+                continue
+
+        if not isinstance(item, dict):
+            continue
+
+        # Extract polymorphic branches (anyOf, oneOf) to keep the node flat
+        for poly_key in ["anyOf", "oneOf"]:
+            if poly_key in item:
+                poly_branches.setdefault(poly_key, []).extend(
+                    item.pop(poly_key)
+                )
+
+        # Merge core property definitions and requirements
+        if "properties" in item:
+            merged_properties.update(item["properties"])
+        if "required" in item:
+            for req in item["required"]:
+                if req not in merged_required:
+                    merged_required.append(req)
+
+        # Carry over generic metadata (title, description, etc.) if not defined in the base
+        for k, v in item.items():
+            if (
+                k
+                not in [
+                    "properties",
+                    "required",
+                    "allOf",
+                    "$ref",
+                    "anyOf",
+                    "oneOf",
+                ]
+                and k not in node
+            ):
+                node[k] = v
+
+    # Apply merged state back to the primary node
+    if merged_properties:
+        node.setdefault("properties", {}).update(merged_properties)
+
+    if merged_required:
+        existing = node.setdefault("required", [])
+        for r in merged_required:
+            if r not in existing:
+                existing.append(r)
+
+    # Re-insert any combined polymorphic branches
+    for k, branches in poly_branches.items():
+        node.setdefault(k, []).extend(branches)
+
+    # If some refs couldn't be resolved locally, put them back into a slim allOf
+    if remaining_refs:
+        node["allOf"] = remaining_refs
+
+
+def distribute_properties_to_branches(node):
+    """
+    Inherits base properties/requirements into anyOf/oneOf branches.
+
+    RATIONALE: This ensures that each branch of a union is a self-contained, valid
+    model in Pydantic. Without this, a generated union model might miss required
+    common fields if it's treated as a pure 'oneOf' alternative.
+    """
+    if "properties" not in node:
+        return
+
+    base_props = node["properties"]
+    base_req = node.get("required", [])
+    base_type = node.get("type")
+
+    for poly_key in ["anyOf", "oneOf"]:
+        if poly_key not in node:
+            continue
+
+        updated_branches = []
+        for branch in node[poly_key]:
+            if not isinstance(branch, dict):
+                updated_branches.append(branch)
+                continue
+
+            # Branch properties override common base properties
+            new_branch = copy.deepcopy(branch)
+            branch_props = new_branch.setdefault("properties", {})
+            combined_props = copy.deepcopy(base_props)
+            combined_props.update(branch_props)
+            new_branch["properties"] = combined_props
+
+            # Combine union and base required field lists
+            new_branch["required"] = list(
+                set(base_req + new_branch.get("required", []))
+            )
+
+            # Ensure the branch knows its JSON type (usually 'object') if inheriting from common base
+            if "type" not in new_branch and base_type:
+                new_branch["type"] = base_type
+
+            updated_branches.append(new_branch)
+        node[poly_key] = updated_branches
+
+
+def flatten_entity_reference(node, entity_definition):
+    """
+    Replaces $ref to 'ucp.json#/$defs/entity' with actual logic.
+    This effectively converts 'Entity' inheritance into direct 'BaseModel' fields.
+    """
+    if "allOf" not in node or not entity_definition:
+        return
+
+    filtered_all_of = []
+    for item in node["allOf"]:
+        is_entity_ref = isinstance(item, dict) and item.get(
+            "$ref", ""
+        ).endswith("ucp.json#/$defs/entity")
+        if is_entity_ref:
+            # Inline a copy; strip name to prevent unwanted class generation for the base
+            e_copy = copy.deepcopy(entity_definition)
+            e_copy.pop("title", None)
+            e_copy.pop("description", None)
+            filtered_all_of.append(e_copy)
+        else:
+            filtered_all_of.append(item)
+    node["allOf"] = filtered_all_of
+
+
+def preprocess_full_schema(schema, entity_def=None):
+    """
+    Main entry point for normalizing a single schema file.
+    Uses bottom-up iteration to ensure nested structures are flat before parents process them.
+    """
+    # 1. Discovery: find all dictionaries in the tree
+    nodes = [n for n in iter_nodes(schema) if isinstance(n, dict)]
+
+    # 2. Execution: process in reverse (approximate bottom-to-top)
+    for node in reversed(nodes):
+        if entity_def:
+            flatten_entity_reference(node, entity_def)
+        merge_all_of_to_node(node, schema)
+        distribute_properties_to_branches(node)
+
+
+# --- Variant Generation (Create/Update/Complete) ---
+
+
+def get_required_ops(schema):
+    """
+    Scans a schema for the custom 'ucp_request' metadata.
+    Returns a set of operation keys (e.g. {'create', 'update'}) that need distinct models.
+    """
     ops = set()
     properties = schema.get("properties", {})
-    for prop_data in properties.values():
-        if not isinstance(prop_data, dict):
-            continue
-        ucp_req = prop_data.get("ucp_request")
-        if isinstance(ucp_req, str):
-            # Strings like "omit" or "required" only imply standard ops.
-            # "complete" request should only be generated when it's explicitly defined in a dict.
-            ops.update(["create", "update"])
-        elif isinstance(ucp_req, dict):
-            for op in ucp_req:
-                ops.add(op)
+    if not isinstance(properties, dict):
+        return ops
+
+    for data in properties.values():
+        if isinstance(data, dict):
+            marker = data.get("ucp_request")
+            if isinstance(marker, str):
+                ops.update(["create", "update"])  # Standard shortcut
+            elif isinstance(marker, dict):
+                ops.update(marker.keys())
     return ops
 
 
-def get_props_with_refs(schema, schema_file_path):
-    """Finds all external schema references associated with their properties."""
-    results = []  # list of (prop_name, abs_ref_path)
+def eval_prop_inclusion(name, data, op, base_required):
+    """
+    Decides if a property should be included or required for a specific operation.
+    Follows UCP 'ucp_request' metadata rules.
+    """
+    if not isinstance(data, dict):
+        return True, name in base_required
 
-    properties = schema.get("properties", {})
-    for prop_name, prop_data in properties.items():
-        stack = [prop_data]
-        while stack:
-            obj = stack.pop()
-            if isinstance(obj, dict):
-                if "$ref" in obj:
-                    ref = obj["$ref"]
-                    if "#" not in ref:
-                        ref_path = (schema_file_path.parent / ref).resolve()
-                        results.append((prop_name, str(ref_path)))
-                for v in obj.values():
-                    stack.append(v)
-            elif isinstance(obj, list):
-                for item in obj:
-                    stack.append(item)
-    return results
+    marker = data.get("ucp_request")
+    include = True
+    is_required = name in base_required
 
+    if marker == "omit":
+        include = False
+    elif marker == "required":
+        is_required = True
+    elif isinstance(marker, dict):
+        val = marker.get(op)
+        if val == "omit" or val is None:
+            include = False
+        elif val == "required":
+            is_required = True
 
-def get_variant_filename(base_path, op):
-    p = Path(base_path)
-    return p.parent / f"{p.stem}_{op}_request.json"
+    return include, is_required
 
 
-def generate_variants(schema_file, schema, ops, all_variant_needs):
-    schema_file_path = Path(schema_file)
-    for op in ops:
-        variant_schema = copy.deepcopy(schema)
+def update_variant_identity(variant_schema, op, stem):
+    """Updates title and $id so that generated code doesn't have naming collisions."""
+    base_title = variant_schema.get("title", stem)
+    variant_schema["title"] = f"{base_title} {op.capitalize()} Request"
 
-        # Update title and id
-        base_title = schema.get("title", schema_file_path.stem)
-        variant_schema["title"] = f"{base_title} {op.capitalize()} Request"
+    if "$id" in variant_schema:
+        old_id = variant_schema["$id"]
+        if "/" in old_id:
+            parts = old_id.split("/")
+            # Support both .json and extension-less IDs
+            name_ext = parts[-1].split(".", 1)
+            name = name_ext[0]
+            ext = name_ext[1] if len(name_ext) > 1 else "json"
 
-        # Update $id if present
-        if "$id" in variant_schema:
-            old_id = variant_schema["$id"]
-            if "/" in old_id:
-                old_id_parts = old_id.split("/")
-                old_id_filename = old_id_parts[-1]
-                if "." in old_id_filename:
-                    stem = old_id_filename.split(".")[0]
-                    ext = old_id_filename.split(".")[-1]
-                    new_id_filename = f"{stem}_{op}_request.{ext}"
-                    variant_schema["$id"] = "/".join(
-                        old_id_parts[:-1] + [new_id_filename]
+            parts[-1] = f"{name}_{op}_request.{ext}"
+            variant_schema["$id"] = "/".join(parts)
+
+
+def rewrite_refs_to_variants(root, op, file_path, variant_needs):
+    """
+    Walks a schema tree and updates external links to point to variant files.
+    Example: product.json -> product_create_request.json
+    """
+    for node in iter_nodes(root):
+        if isinstance(node, dict) and "$ref" in node:
+            ref = node["$ref"]
+            if "#" not in ref:  # External file reference
+                abs_target = (file_path.parent / ref).resolve()
+                if (
+                    str(abs_target) in variant_needs
+                    and op in variant_needs[str(abs_target)]
+                ):
+                    ref_path = Path(ref)
+                    node["$ref"] = str(
+                        ref_path.parent / f"{ref_path.stem}_{op}_request.json"
                     )
 
-        new_properties = {}
+
+def generate_variants(path, schema, ops, all_variant_needs):
+    """Creates specific JSON files (create/update/complete) based on ucp_request markers."""
+    file_path = Path(path)
+    for op in ops:
+        variant = copy.deepcopy(schema)
+        update_variant_identity(variant, op, file_path.stem)
+
+        new_props = {}
         new_required = []
+        base_req = schema.get("required", [])
 
-        for prop_name, prop_data in schema.get("properties", {}).items():
-            if not isinstance(prop_data, dict):
-                new_properties[prop_name] = prop_data
-                continue
-
-            ucp_req = prop_data.get("ucp_request")
-
-            include = True
-            is_required = False
-
-            if ucp_req is not None:
-                if isinstance(ucp_req, str):
-                    if ucp_req == "omit":
-                        include = False
-                    elif ucp_req == "required":
-                        is_required = True
-                elif isinstance(ucp_req, dict):
-                    op_val = ucp_req.get(op)
-                    if op_val == "omit" or op_val is None:
-                        include = False
-                    elif op_val == "required":
-                        is_required = True
-            else:
-                # No ucp_request. Include if it was required in base?
-                if prop_name in schema.get("required", []):
-                    is_required = True
-
+        for name, data in schema.get("properties", {}).items():
+            include, required = eval_prop_inclusion(name, data, op, base_req)
             if include:
-                prop_copy = copy.deepcopy(prop_data)
-                if "ucp_request" in prop_copy:
-                    del prop_copy["ucp_request"]
+                prop_data = copy.deepcopy(data)
+                if isinstance(prop_data, dict):
+                    prop_data.pop("ucp_request", None)
+                    rewrite_refs_to_variants(
+                        prop_data, op, file_path, all_variant_needs
+                    )
 
-                # Iterative reference check (deep)
-                stack = [prop_copy]
-                while stack:
-                    obj = stack.pop()
-                    if isinstance(obj, dict):
-                        if "$ref" in obj:
-                            ref = obj["$ref"]
-                            if "#" not in ref:
-                                ref_path = Path(ref)
-                                target_base_abs = (
-                                    schema_file_path.parent / ref_path
-                                ).resolve()
-                                if (
-                                    str(target_base_abs) in all_variant_needs
-                                    and op
-                                    in all_variant_needs[str(target_base_abs)]
-                                ):
-                                    variant_ref_filename = (
-                                        f"{ref_path.stem}_{op}_request.json"
-                                    )
-                                    obj["$ref"] = str(
-                                        ref_path.parent / variant_ref_filename
-                                    )
-                        for v in obj.values():
-                            stack.append(v)
-                    elif isinstance(obj, list):
-                        for item in obj:
-                            stack.append(item)
+                new_props[name] = prop_data
+                if required:
+                    new_required.append(name)
 
-                new_properties[prop_name] = prop_copy
-                if is_required:
-                    new_required.append(prop_name)
+        variant["properties"] = new_props
+        variant["required"] = new_required
 
-        # Always generate the variant schema to avoid breaking refs in parents
-        variant_schema["properties"] = new_properties
-        variant_schema["required"] = new_required
-
-        variant_path = get_variant_filename(schema_file_path, op)
-        with open(variant_path, "w") as f:
-            json.dump(variant_schema, f, indent=2)
-        print(f"Generated {variant_path}")
+        out = file_path.parent / f"{file_path.stem}_{op}_request.json"
+        save_json(variant, out)
+        print(f"Generated variant: {out}")
 
 
-def fix_ucp_metadata(schema_dir_path):
-    """Ensures all 'ucp' properties point to the generic UcpMetadata union."""
-    ucp_path = schema_dir_path / "ucp.json"
+# --- Global Normalization ---
+
+
+def fix_metadata_structure(schema_dir):
+    """
+    Ensures ucp.json has a root union and other files point to it generically.
+    This enables a unified 'ucp' metadata property across the entire SDK.
+    """
+    ucp_path = schema_dir / "ucp.json"
     if not ucp_path.exists():
-        print(f"Warning: {ucp_path} not found, skipping metadata fix.")
         return
 
-    with open(ucp_path, "r") as f:
-        ucp_schema = json.load(f)
-
-    # 1. Update ucp.json to have a oneOf at the root to create UcpMetadata union
-    ucp_schema["oneOf"] = [
-        {"$ref": "#/$defs/platform_schema"},
-        {"$ref": "#/$defs/business_schema"},
-        {"$ref": "#/$defs/response_checkout_schema"},
-        {"$ref": "#/$defs/response_order_schema"},
-        {"$ref": "#/$defs/response_cart_schema"},
+    ucp = load_json(ucp_path)
+    ucp["oneOf"] = [
+        {"$ref": f"#/$defs/{d}"}
+        for d in [
+            "platform_schema",
+            "business_schema",
+            "response_checkout_schema",
+            "response_order_schema",
+            "response_cart_schema",
+        ]
     ]
+    save_json(ucp, ucp_path)
 
-    with open(ucp_path, "w") as f:
-        json.dump(ucp_schema, f, indent=2)
-    print(f"Updated {ucp_path} with oneOf union")
-
-    # 2. Update all other schemas to point their 'ucp' property to ucp.json root
-    all_files = list(schema_dir_path.rglob("*.json"))
-    for f in all_files:
-        if f.name == "ucp.json":
+    for f in schema_dir.rglob("*.json"):
+        if f.name == "ucp.json" or "_request.json" in f.name:
             continue
         try:
-            with open(f, "r") as open_f:
-                schema = json.load(open_f)
-        except Exception:
+            s = load_json(f)
+            # Find the 'ucp' property and point it to the ucp.json root
+            ucp_prop = s.get("properties", {}).get("ucp", {})
+            if (
+                isinstance(ucp_prop, dict)
+                and "$ref" in ucp_prop
+                and "ucp.json" in ucp_prop["$ref"]
+            ):
+                ucp_prop["$ref"] = ucp_prop["$ref"].split("#")[0]
+                save_json(s, f)
+        except:
             continue
 
-        changed = False
-        if isinstance(schema, dict) and "properties" in schema:
-            if "ucp" in schema["properties"]:
-                prop_data = schema["properties"]["ucp"]
-                if isinstance(prop_data, dict) and "$ref" in prop_data:
-                    ref = prop_data["$ref"]
-                    if "ucp.json" in ref:
-                        # Point to root instead of specific $def
-                        prop_data["$ref"] = ref.split("#")[0]
-                        changed = True
 
-        if changed:
-            with open(f, "w") as open_f:
-                json.dump(schema, open_f, indent=2)
-            print(f"Updated {f} to point ucp property to ucp.json root")
+# --- Dependency Management ---
 
 
-def main():
-    schema_dir = "ucp/source/schemas"
-    if len(sys.argv) > 1:
-        schema_dir = sys.argv[1]
+def extract_external_refs(schema, path):
+    """Finds all relative external file references in the schema properties."""
+    refs = []
+    props = schema.get("properties", {})
+    if not isinstance(props, dict):
+        return refs
 
-    schema_dir_path = Path(schema_dir)
-    if not schema_dir_path.exists():
-        print(f"Directory {schema_dir} does not exist.")
-        return
+    for name, data in props.items():
+        for node in iter_nodes(data):
+            if isinstance(node, dict) and "$ref" in node:
+                ref = node["$ref"]
+                if "#" not in ref:
+                    abs_path = str((path.parent / ref).resolve())
+                    refs.append((name, abs_path))
+    return refs
 
-    # Fix metadata types before processing
-    fix_ucp_metadata(schema_dir_path)
 
-    # 0. Load ucp.json to get the central 'entity' definition for flattening
-    ucp_path = schema_dir_path / "ucp.json"
-    entity_def = {}
-    if ucp_path.exists():
-        with open(ucp_path, "r") as f:
-            ucp_schema = json.load(f)
-            entity_def = ucp_schema.get("$defs", {}).get("entity", {})
-
-    all_files = list(schema_dir_path.rglob("*.json"))
-    schemas_cache = {}
-    schema_props_refs = {}
-    all_variant_needs = {}
-
-    # 1. First pass: load all schemas and find properties with refs
-    for f in all_files:
-        if "_request.json" in f.name:
-            continue
-        try:
-            with open(f, "r") as open_f:
-                schema = json.load(open_f)
-
-                # Flatten entity references immediately
-                if entity_def:
-                    flatten_entity(schema, entity_def)
-
-                # Save the flattened schema back to disk for use by datamodel-codegen
-                with open(f, "w") as out_f:
-                    json.dump(schema, out_f, indent=2)
-
-                if (
-                    not isinstance(schema, dict)
-                    or schema.get("type") != "object"
-                    or "properties" not in schema
-                ):
-                    # Still save it even if not an object, as it might have been flattened
-                    schemas_cache[str(f.resolve())] = schema
-                    continue
-
-                abs_path = str(f.resolve())
-                schemas_cache[abs_path] = schema
-                schema_props_refs[abs_path] = get_props_with_refs(schema, f)
-
-                # 2. Get explicit needs defined in the schema itself
-                explicit_ops = get_explicit_ops(schema)
-                if explicit_ops:
-                    all_variant_needs[abs_path] = explicit_ops
-        except Exception as e:
-            print(f"Error processing {f}: {e}")
-
-    # 3. Transitive dependency tracking (Parent -> Child):
-    # If P needs variant OP, and P includes property S (not omitted for OP),
-    # then S also needs variant OP to ensure ref matching works correctly.
+def propagate_needs_transitive(variant_needs, schema_refs, schemas):
+    """
+    If a parent model needs a 'create' variant, and it has a child property 'X',
+    then 'X' also needs a 'create' variant so that references match.
+    """
     changed = True
     while changed:
         changed = False
-        for abs_path, props_refs in schema_props_refs.items():
-            if abs_path not in all_variant_needs:
+        for path, refs in schema_refs.items():
+            if path not in variant_needs:
                 continue
 
-            parent_schema = schemas_cache[abs_path]
-            parent_ops = all_variant_needs[abs_path]
-
-            for op in list(parent_ops):
-                for prop_name, ref_path in props_refs:
-                    if ref_path not in schemas_cache:
+            for op in list(variant_needs[path]):
+                for prop_name, child_path in refs:
+                    if child_path not in schemas:
                         continue
 
-                    # Check if this property is omitted for this op in parent
-                    prop_data = parent_schema["properties"].get(prop_name, {})
-                    ucp_req = prop_data.get("ucp_request")
-
-                    include = True
-                    if ucp_req is not None:
-                        if isinstance(ucp_req, str):
-                            if ucp_req == "omit":
-                                include = False
-                        elif isinstance(ucp_req, dict):
-                            op_val = ucp_req.get(op)
-                            if op_val == "omit" or op_val is None:
-                                include = False
+                    # Only propagate if the property isn't 'omit'ted for this op
+                    data = (
+                        schemas[path].get("properties", {}).get(prop_name, {})
+                    )
+                    include, _ = eval_prop_inclusion(
+                        prop_name, data, op, schemas[path].get("required", [])
+                    )
 
                     if include:
-                        # Propagate op from parent to child
-                        child_needs = all_variant_needs.get(ref_path, set())
-                        if op not in child_needs:
-                            all_variant_needs.setdefault(ref_path, set()).add(
-                                op
-                            )
+                        target_set = variant_needs.setdefault(child_path, set())
+                        if op not in target_set:
+                            target_set.add(op)
                             changed = True
 
-    # 4. Final pass: generate variants
-    for f_abs, ops in all_variant_needs.items():
-        generate_variants(f_abs, schemas_cache[f_abs], ops, all_variant_needs)
+
+# --- Main Flow ---
+
+
+def main():
+    """
+    Orchestrates the schema preprocessing pipeline:
+    1. metadata normalization: unifies ucp properties
+    2. Pass 1: Local flattening (allOf) and discovery of needed variants
+    3. Pass 2: Transitive propagation (ensuring matched variants for linked schemas)
+    4. Pass 3: Variant file generation (*_request.json)
+    """
+    target_dir = Path(
+        sys.argv[1] if len(sys.argv) > 1 else "ucp/source/schemas"
+    )
+    if not target_dir.exists():
+        print(f"Error: Directory {target_dir} not found.")
+        return
+
+    # Phase 0: Ensure the metadata 'ucp' property is consistent across all files
+    fix_metadata_structure(target_dir)
+
+    # Load base entity definition for inlining (flattening inheritance)
+    ucp_path = target_dir / "ucp.json"
+    entity_def = (
+        load_json(ucp_path).get("$defs", {}).get("entity", {})
+        if ucp_path.exists()
+        else {}
+    )
+
+    schemas, schema_refs, variant_needs = {}, {}, {}
+
+    # Pass 1: Load every schema, flatten it locally, and find explicit variant markers
+    for f in target_dir.rglob("*.json"):
+        if "_request.json" in f.name:
+            continue
+        try:
+            s = load_json(f)
+            preprocess_full_schema(s, entity_def)
+            save_json(s, f)  # Write back the flattened core schema
+
+            p_abs = str(f.resolve())
+            schemas[p_abs] = s
+            schema_refs[p_abs] = extract_external_refs(s, f)
+
+            # Check if this schema explicitly asks for variants via 'ucp_request' markers
+            ops = get_required_ops(s)
+            if ops:
+                variant_needs[p_abs] = ops
+        except Exception as e:
+            print(f"Failed to process {f}: {e}")
+
+    # Pass 2: Propagate the need for variants down the dependency tree
+    propagate_needs_transitive(variant_needs, schema_refs, schemas)
+
+    # Pass 3: Finally write out the new variant files
+    for path, ops in variant_needs.items():
+        generate_variants(path, schemas[path], ops, variant_needs)
 
 
 if __name__ == "__main__":

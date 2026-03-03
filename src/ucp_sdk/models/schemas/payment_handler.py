@@ -66,7 +66,7 @@ class Base(BaseModel):
     """
 
 
-class PlatformSchema(Base):
+class PlatformSchema(BaseModel):
     """
     Platform declaration for discovery profiles. May include partial config state required for discovery.
     """
@@ -74,9 +74,29 @@ class PlatformSchema(Base):
     model_config = ConfigDict(
         extra="allow",
     )
+    version: Version
+    """
+    Entity version in YYYY-MM-DD format.
+    """
+    spec: AnyUrl
+    """
+    URL to human-readable specification document.
+    """
+    schema_: AnyUrl = Field(..., alias="schema")
+    """
+    URL to JSON Schema defining this entity's structure and payloads.
+    """
+    id: str
+    """
+    Unique identifier for this entity instance. Used to disambiguate when multiple instances exist.
+    """
+    config: dict[str, Any] | None = None
+    """
+    Entity-specific configuration. Structure defined by each entity's schema.
+    """
 
 
-class BusinessSchema(Base):
+class BusinessSchema(BaseModel):
     """
     Business declaration for discovery profiles. May include partial config state required for discovery.
     """
@@ -84,9 +104,29 @@ class BusinessSchema(Base):
     model_config = ConfigDict(
         extra="allow",
     )
+    version: Version
+    """
+    Entity version in YYYY-MM-DD format.
+    """
+    spec: AnyUrl | None = None
+    """
+    URL to human-readable specification document.
+    """
+    schema_: AnyUrl | None = Field(None, alias="schema")
+    """
+    URL to JSON Schema defining this entity's structure and payloads.
+    """
+    id: str
+    """
+    Unique identifier for this entity instance. Used to disambiguate when multiple instances exist.
+    """
+    config: dict[str, Any] | None = None
+    """
+    Entity-specific configuration. Structure defined by each entity's schema.
+    """
 
 
-class ResponseSchema(Base):
+class ResponseSchema(BaseModel):
     """
     Handler reference in responses. May include full config state for runtime usage of the handler.
     """
@@ -94,3 +134,23 @@ class ResponseSchema(Base):
     model_config = ConfigDict(
         extra="allow",
     )
+    version: Version
+    """
+    Entity version in YYYY-MM-DD format.
+    """
+    spec: AnyUrl | None = None
+    """
+    URL to human-readable specification document.
+    """
+    schema_: AnyUrl | None = Field(None, alias="schema")
+    """
+    URL to JSON Schema defining this entity's structure and payloads.
+    """
+    id: str
+    """
+    Unique identifier for this entity instance. Used to disambiguate when multiple instances exist.
+    """
+    config: dict[str, Any] | None = None
+    """
+    Entity-specific configuration. Structure defined by each entity's schema.
+    """

@@ -18,26 +18,20 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import ConfigDict
 
-from . import item_update_request
+from .postal_address import PostalAddress
 
 
-class LineItemUpdateRequest(BaseModel):
+class ShippingDestinationUpdateRequest(PostalAddress):
     """
-    Line item object. Expected to use the currency of the parent object.
+    Shipping destination.
     """
 
     model_config = ConfigDict(
         extra="allow",
     )
     id: str
-    item: item_update_request.ItemUpdateRequest
-    quantity: int = Field(..., ge=1)
     """
-    Quantity of the item being purchased.
-    """
-    parent_id: str | None = None
-    """
-    Parent line item identifier for any nested structures.
+    ID specific to this shipping destination.
     """

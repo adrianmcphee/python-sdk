@@ -72,7 +72,7 @@ class Base(BaseModel):
     """
 
 
-class PlatformSchema(Base):
+class PlatformSchema(BaseModel):
     """
     Full capability declaration for platform-level discovery. Includes spec/schema URLs for agent fetching.
     """
@@ -80,9 +80,35 @@ class PlatformSchema(Base):
     model_config = ConfigDict(
         extra="allow",
     )
+    version: Version
+    """
+    Entity version in YYYY-MM-DD format.
+    """
+    spec: AnyUrl
+    """
+    URL to human-readable specification document.
+    """
+    schema_: AnyUrl = Field(..., alias="schema")
+    """
+    URL to JSON Schema defining this entity's structure and payloads.
+    """
+    id: str | None = None
+    """
+    Unique identifier for this entity instance. Used to disambiguate when multiple instances exist.
+    """
+    config: dict[str, Any] | None = None
+    """
+    Entity-specific configuration. Structure defined by each entity's schema.
+    """
+    extends: str | None = Field(
+        None, pattern="^[a-z][a-z0-9]*(?:\\.[a-z][a-z0-9_]*)+$"
+    )
+    """
+    Parent capability this extends. Present for extensions, absent for root capabilities.
+    """
 
 
-class BusinessSchema(Base):
+class BusinessSchema(BaseModel):
     """
     Capability configuration for business/merchant level. May include business-specific config overrides.
     """
@@ -90,9 +116,35 @@ class BusinessSchema(Base):
     model_config = ConfigDict(
         extra="allow",
     )
+    version: Version
+    """
+    Entity version in YYYY-MM-DD format.
+    """
+    spec: AnyUrl | None = None
+    """
+    URL to human-readable specification document.
+    """
+    schema_: AnyUrl | None = Field(None, alias="schema")
+    """
+    URL to JSON Schema defining this entity's structure and payloads.
+    """
+    id: str | None = None
+    """
+    Unique identifier for this entity instance. Used to disambiguate when multiple instances exist.
+    """
+    config: dict[str, Any] | None = None
+    """
+    Entity-specific configuration. Structure defined by each entity's schema.
+    """
+    extends: str | None = Field(
+        None, pattern="^[a-z][a-z0-9]*(?:\\.[a-z][a-z0-9_]*)+$"
+    )
+    """
+    Parent capability this extends. Present for extensions, absent for root capabilities.
+    """
 
 
-class ResponseSchema(Base):
+class ResponseSchema(BaseModel):
     """
     Capability reference in responses. Only name/version required to confirm active capabilities.
     """
@@ -100,3 +152,29 @@ class ResponseSchema(Base):
     model_config = ConfigDict(
         extra="allow",
     )
+    version: Version
+    """
+    Entity version in YYYY-MM-DD format.
+    """
+    spec: AnyUrl | None = None
+    """
+    URL to human-readable specification document.
+    """
+    schema_: AnyUrl | None = Field(None, alias="schema")
+    """
+    URL to JSON Schema defining this entity's structure and payloads.
+    """
+    id: str | None = None
+    """
+    Unique identifier for this entity instance. Used to disambiguate when multiple instances exist.
+    """
+    config: dict[str, Any] | None = None
+    """
+    Entity-specific configuration. Structure defined by each entity's schema.
+    """
+    extends: str | None = Field(
+        None, pattern="^[a-z][a-z0-9]*(?:\\.[a-z][a-z0-9_]*)+$"
+    )
+    """
+    Parent capability this extends. Present for extensions, absent for root capabilities.
+    """

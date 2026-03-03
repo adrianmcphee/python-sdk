@@ -22,8 +22,6 @@ from typing import Any, Literal
 
 from pydantic import AnyUrl, BaseModel, ConfigDict, Field, RootModel
 
-from .transports import embedded_config
-
 
 class UcpService(RootModel[Any]):
     model_config = ConfigDict(
@@ -35,90 +33,18 @@ class UcpService(RootModel[Any]):
     """
 
 
-class PlatformSchema(BaseModel):
+class Config(BaseModel):
+    """
+    Entity-specific configuration. Structure defined by each entity's schema.
+    """
+
     model_config = ConfigDict(
         extra="allow",
     )
-    transport: Literal["rest"] = "rest"
-
-
-class PlatformSchema5(BaseModel):
-    model_config = ConfigDict(
-        extra="allow",
-    )
-    transport: Literal["mcp"] = "mcp"
-
-
-class PlatformSchema6(BaseModel):
-    model_config = ConfigDict(
-        extra="allow",
-    )
-    transport: Literal["a2a"] = "a2a"
-
-
-class PlatformSchema7(BaseModel):
-    model_config = ConfigDict(
-        extra="allow",
-    )
-    transport: Literal["embedded"] = "embedded"
-
-
-class BusinessSchema(BaseModel):
-    model_config = ConfigDict(
-        extra="allow",
-    )
-    transport: Literal["rest"] = "rest"
-
-
-class BusinessSchema4(BaseModel):
-    model_config = ConfigDict(
-        extra="allow",
-    )
-    transport: Literal["mcp"] = "mcp"
-
-
-class BusinessSchema5(BaseModel):
-    model_config = ConfigDict(
-        extra="allow",
-    )
-    transport: Literal["a2a"] = "a2a"
-
-
-class BusinessSchema6(BaseModel):
-    model_config = ConfigDict(
-        extra="allow",
-    )
-    transport: Literal["embedded"] = "embedded"
-    config: embedded_config.EmbeddedTransportConfig | None = None
-
-
-class ResponseSchema(BaseModel):
-    model_config = ConfigDict(
-        extra="allow",
-    )
-    transport: Literal["rest"] = "rest"
-
-
-class ResponseSchema4(BaseModel):
-    model_config = ConfigDict(
-        extra="allow",
-    )
-    transport: Literal["mcp"] = "mcp"
-
-
-class ResponseSchema5(BaseModel):
-    model_config = ConfigDict(
-        extra="allow",
-    )
-    transport: Literal["a2a"] = "a2a"
-
-
-class ResponseSchema6(BaseModel):
-    model_config = ConfigDict(
-        extra="allow",
-    )
-    transport: Literal["embedded"] = "embedded"
-    config: embedded_config.EmbeddedTransportConfig | None = None
+    delegate: list[str] | None = None
+    """
+    Delegations the business allows. At service-level, declares available delegations. In checkout responses, confirms accepted delegations for this session.
+    """
 
 
 class Version(RootModel[Any]):
@@ -162,7 +88,7 @@ class Base(BaseModel):
     """
 
 
-class PlatformSchema8(Base):
+class PlatformSchema(BaseModel):
     """
     Full service declaration for platform-level discovery. Different transports require different fields.
     """
@@ -170,9 +96,37 @@ class PlatformSchema8(Base):
     model_config = ConfigDict(
         extra="allow",
     )
+    version: Version
+    """
+    Entity version in YYYY-MM-DD format.
+    """
+    spec: AnyUrl
+    """
+    URL to human-readable specification document.
+    """
+    schema_: AnyUrl = Field(..., alias="schema")
+    """
+    URL to JSON Schema defining this entity's structure and payloads.
+    """
+    id: str | None = None
+    """
+    Unique identifier for this entity instance. Used to disambiguate when multiple instances exist.
+    """
+    config: dict[str, Any] | None = None
+    """
+    Entity-specific configuration. Structure defined by each entity's schema.
+    """
+    transport: Literal["rest"]
+    """
+    Transport protocol for this service binding.
+    """
+    endpoint: AnyUrl
+    """
+    Endpoint URL for this transport binding.
+    """
 
 
-class PlatformSchema9(PlatformSchema, PlatformSchema8):
+class PlatformSchema5(BaseModel):
     """
     Full service declaration for platform-level discovery. Different transports require different fields.
     """
@@ -180,9 +134,37 @@ class PlatformSchema9(PlatformSchema, PlatformSchema8):
     model_config = ConfigDict(
         extra="allow",
     )
+    version: Version
+    """
+    Entity version in YYYY-MM-DD format.
+    """
+    spec: AnyUrl
+    """
+    URL to human-readable specification document.
+    """
+    schema_: AnyUrl = Field(..., alias="schema")
+    """
+    URL to JSON Schema defining this entity's structure and payloads.
+    """
+    id: str | None = None
+    """
+    Unique identifier for this entity instance. Used to disambiguate when multiple instances exist.
+    """
+    config: dict[str, Any] | None = None
+    """
+    Entity-specific configuration. Structure defined by each entity's schema.
+    """
+    transport: Literal["mcp"]
+    """
+    Transport protocol for this service binding.
+    """
+    endpoint: AnyUrl
+    """
+    Endpoint URL for this transport binding.
+    """
 
 
-class PlatformSchema10(PlatformSchema5, PlatformSchema8):
+class PlatformSchema6(BaseModel):
     """
     Full service declaration for platform-level discovery. Different transports require different fields.
     """
@@ -190,9 +172,37 @@ class PlatformSchema10(PlatformSchema5, PlatformSchema8):
     model_config = ConfigDict(
         extra="allow",
     )
+    version: Version
+    """
+    Entity version in YYYY-MM-DD format.
+    """
+    spec: AnyUrl
+    """
+    URL to human-readable specification document.
+    """
+    schema_: AnyUrl | None = Field(None, alias="schema")
+    """
+    URL to JSON Schema defining this entity's structure and payloads.
+    """
+    id: str | None = None
+    """
+    Unique identifier for this entity instance. Used to disambiguate when multiple instances exist.
+    """
+    config: dict[str, Any] | None = None
+    """
+    Entity-specific configuration. Structure defined by each entity's schema.
+    """
+    transport: Literal["a2a"]
+    """
+    Transport protocol for this service binding.
+    """
+    endpoint: AnyUrl
+    """
+    Endpoint URL for this transport binding.
+    """
 
 
-class PlatformSchema11(PlatformSchema6, PlatformSchema8):
+class PlatformSchema7(BaseModel):
     """
     Full service declaration for platform-level discovery. Different transports require different fields.
     """
@@ -200,39 +210,53 @@ class PlatformSchema11(PlatformSchema6, PlatformSchema8):
     model_config = ConfigDict(
         extra="allow",
     )
-
-
-class PlatformSchema12(PlatformSchema7, PlatformSchema8):
+    version: Version
     """
-    Full service declaration for platform-level discovery. Different transports require different fields.
+    Entity version in YYYY-MM-DD format.
     """
-
-    model_config = ConfigDict(
-        extra="allow",
-    )
+    spec: AnyUrl
+    """
+    URL to human-readable specification document.
+    """
+    schema_: AnyUrl = Field(..., alias="schema")
+    """
+    URL to JSON Schema defining this entity's structure and payloads.
+    """
+    id: str | None = None
+    """
+    Unique identifier for this entity instance. Used to disambiguate when multiple instances exist.
+    """
+    config: dict[str, Any] | None = None
+    """
+    Entity-specific configuration. Structure defined by each entity's schema.
+    """
+    transport: Literal["embedded"]
+    """
+    Transport protocol for this service binding.
+    """
+    endpoint: AnyUrl | None = None
+    """
+    Endpoint URL for this transport binding.
+    """
 
 
 class PlatformSchema3(
     RootModel[
-        PlatformSchema9 | PlatformSchema10 | PlatformSchema11 | PlatformSchema12
+        PlatformSchema | PlatformSchema5 | PlatformSchema6 | PlatformSchema7
     ]
 ):
-    """
-    Full service declaration for platform-level discovery. Different transports require different fields.
-    """
-
     model_config = ConfigDict(
         frozen=True,
     )
     root: (
-        PlatformSchema9 | PlatformSchema10 | PlatformSchema11 | PlatformSchema12
+        PlatformSchema | PlatformSchema5 | PlatformSchema6 | PlatformSchema7
     ) = Field(..., title="Service (Platform Schema)")
     """
     Full service declaration for platform-level discovery. Different transports require different fields.
     """
 
 
-class BusinessSchema7(Base):
+class BusinessSchema(BaseModel):
     """
     Service binding for business/merchant configuration. May override platform endpoints.
     """
@@ -240,9 +264,37 @@ class BusinessSchema7(Base):
     model_config = ConfigDict(
         extra="allow",
     )
+    version: Version
+    """
+    Entity version in YYYY-MM-DD format.
+    """
+    spec: AnyUrl | None = None
+    """
+    URL to human-readable specification document.
+    """
+    schema_: AnyUrl | None = Field(None, alias="schema")
+    """
+    URL to JSON Schema defining this entity's structure and payloads.
+    """
+    id: str | None = None
+    """
+    Unique identifier for this entity instance. Used to disambiguate when multiple instances exist.
+    """
+    config: dict[str, Any] | None = None
+    """
+    Entity-specific configuration. Structure defined by each entity's schema.
+    """
+    transport: Literal["rest"]
+    """
+    Transport protocol for this service binding.
+    """
+    endpoint: AnyUrl
+    """
+    Endpoint URL for this transport binding.
+    """
 
 
-class BusinessSchema8(BusinessSchema, BusinessSchema7):
+class BusinessSchema4(BaseModel):
     """
     Service binding for business/merchant configuration. May override platform endpoints.
     """
@@ -250,9 +302,37 @@ class BusinessSchema8(BusinessSchema, BusinessSchema7):
     model_config = ConfigDict(
         extra="allow",
     )
+    version: Version
+    """
+    Entity version in YYYY-MM-DD format.
+    """
+    spec: AnyUrl | None = None
+    """
+    URL to human-readable specification document.
+    """
+    schema_: AnyUrl | None = Field(None, alias="schema")
+    """
+    URL to JSON Schema defining this entity's structure and payloads.
+    """
+    id: str | None = None
+    """
+    Unique identifier for this entity instance. Used to disambiguate when multiple instances exist.
+    """
+    config: dict[str, Any] | None = None
+    """
+    Entity-specific configuration. Structure defined by each entity's schema.
+    """
+    transport: Literal["mcp"]
+    """
+    Transport protocol for this service binding.
+    """
+    endpoint: AnyUrl
+    """
+    Endpoint URL for this transport binding.
+    """
 
 
-class BusinessSchema9(BusinessSchema4, BusinessSchema7):
+class BusinessSchema5(BaseModel):
     """
     Service binding for business/merchant configuration. May override platform endpoints.
     """
@@ -260,9 +340,37 @@ class BusinessSchema9(BusinessSchema4, BusinessSchema7):
     model_config = ConfigDict(
         extra="allow",
     )
+    version: Version
+    """
+    Entity version in YYYY-MM-DD format.
+    """
+    spec: AnyUrl | None = None
+    """
+    URL to human-readable specification document.
+    """
+    schema_: AnyUrl | None = Field(None, alias="schema")
+    """
+    URL to JSON Schema defining this entity's structure and payloads.
+    """
+    id: str | None = None
+    """
+    Unique identifier for this entity instance. Used to disambiguate when multiple instances exist.
+    """
+    config: dict[str, Any] | None = None
+    """
+    Entity-specific configuration. Structure defined by each entity's schema.
+    """
+    transport: Literal["a2a"]
+    """
+    Transport protocol for this service binding.
+    """
+    endpoint: AnyUrl
+    """
+    Endpoint URL for this transport binding.
+    """
 
 
-class BusinessSchema10(BusinessSchema5, BusinessSchema7):
+class BusinessSchema6(BaseModel):
     """
     Service binding for business/merchant configuration. May override platform endpoints.
     """
@@ -270,39 +378,53 @@ class BusinessSchema10(BusinessSchema5, BusinessSchema7):
     model_config = ConfigDict(
         extra="allow",
     )
-
-
-class BusinessSchema11(BusinessSchema6, BusinessSchema7):
+    version: Version
     """
-    Service binding for business/merchant configuration. May override platform endpoints.
+    Entity version in YYYY-MM-DD format.
     """
-
-    model_config = ConfigDict(
-        extra="allow",
-    )
+    spec: AnyUrl | None = None
+    """
+    URL to human-readable specification document.
+    """
+    schema_: AnyUrl | None = Field(None, alias="schema")
+    """
+    URL to JSON Schema defining this entity's structure and payloads.
+    """
+    id: str | None = None
+    """
+    Unique identifier for this entity instance. Used to disambiguate when multiple instances exist.
+    """
+    config: Config | None = Field(None, title="Embedded Transport Config")
+    """
+    Entity-specific configuration. Structure defined by each entity's schema.
+    """
+    transport: Literal["embedded"]
+    """
+    Transport protocol for this service binding.
+    """
+    endpoint: AnyUrl | None = None
+    """
+    Endpoint URL for this transport binding.
+    """
 
 
 class BusinessSchema2(
     RootModel[
-        BusinessSchema8 | BusinessSchema9 | BusinessSchema10 | BusinessSchema11
+        BusinessSchema | BusinessSchema4 | BusinessSchema5 | BusinessSchema6
     ]
 ):
-    """
-    Service binding for business/merchant configuration. May override platform endpoints.
-    """
-
     model_config = ConfigDict(
         frozen=True,
     )
     root: (
-        BusinessSchema8 | BusinessSchema9 | BusinessSchema10 | BusinessSchema11
+        BusinessSchema | BusinessSchema4 | BusinessSchema5 | BusinessSchema6
     ) = Field(..., title="Service (Business Schema)")
     """
     Service binding for business/merchant configuration. May override platform endpoints.
     """
 
 
-class ResponseSchema7(Base):
+class ResponseSchema(BaseModel):
     """
     Service binding in API responses. Includes per-resource transport configuration via typed config.
     """
@@ -310,9 +432,37 @@ class ResponseSchema7(Base):
     model_config = ConfigDict(
         extra="allow",
     )
+    version: Version
+    """
+    Entity version in YYYY-MM-DD format.
+    """
+    spec: AnyUrl | None = None
+    """
+    URL to human-readable specification document.
+    """
+    schema_: AnyUrl | None = Field(None, alias="schema")
+    """
+    URL to JSON Schema defining this entity's structure and payloads.
+    """
+    id: str | None = None
+    """
+    Unique identifier for this entity instance. Used to disambiguate when multiple instances exist.
+    """
+    config: dict[str, Any] | None = None
+    """
+    Entity-specific configuration. Structure defined by each entity's schema.
+    """
+    transport: Literal["rest"]
+    """
+    Transport protocol for this service binding.
+    """
+    endpoint: AnyUrl | None = None
+    """
+    Endpoint URL for this transport binding.
+    """
 
 
-class ResponseSchema8(ResponseSchema, ResponseSchema7):
+class ResponseSchema4(BaseModel):
     """
     Service binding in API responses. Includes per-resource transport configuration via typed config.
     """
@@ -320,9 +470,37 @@ class ResponseSchema8(ResponseSchema, ResponseSchema7):
     model_config = ConfigDict(
         extra="allow",
     )
+    version: Version
+    """
+    Entity version in YYYY-MM-DD format.
+    """
+    spec: AnyUrl | None = None
+    """
+    URL to human-readable specification document.
+    """
+    schema_: AnyUrl | None = Field(None, alias="schema")
+    """
+    URL to JSON Schema defining this entity's structure and payloads.
+    """
+    id: str | None = None
+    """
+    Unique identifier for this entity instance. Used to disambiguate when multiple instances exist.
+    """
+    config: dict[str, Any] | None = None
+    """
+    Entity-specific configuration. Structure defined by each entity's schema.
+    """
+    transport: Literal["mcp"]
+    """
+    Transport protocol for this service binding.
+    """
+    endpoint: AnyUrl | None = None
+    """
+    Endpoint URL for this transport binding.
+    """
 
 
-class ResponseSchema9(ResponseSchema4, ResponseSchema7):
+class ResponseSchema5(BaseModel):
     """
     Service binding in API responses. Includes per-resource transport configuration via typed config.
     """
@@ -330,9 +508,37 @@ class ResponseSchema9(ResponseSchema4, ResponseSchema7):
     model_config = ConfigDict(
         extra="allow",
     )
+    version: Version
+    """
+    Entity version in YYYY-MM-DD format.
+    """
+    spec: AnyUrl | None = None
+    """
+    URL to human-readable specification document.
+    """
+    schema_: AnyUrl | None = Field(None, alias="schema")
+    """
+    URL to JSON Schema defining this entity's structure and payloads.
+    """
+    id: str | None = None
+    """
+    Unique identifier for this entity instance. Used to disambiguate when multiple instances exist.
+    """
+    config: dict[str, Any] | None = None
+    """
+    Entity-specific configuration. Structure defined by each entity's schema.
+    """
+    transport: Literal["a2a"]
+    """
+    Transport protocol for this service binding.
+    """
+    endpoint: AnyUrl | None = None
+    """
+    Endpoint URL for this transport binding.
+    """
 
 
-class ResponseSchema10(ResponseSchema5, ResponseSchema7):
+class ResponseSchema6(BaseModel):
     """
     Service binding in API responses. Includes per-resource transport configuration via typed config.
     """
@@ -340,32 +546,46 @@ class ResponseSchema10(ResponseSchema5, ResponseSchema7):
     model_config = ConfigDict(
         extra="allow",
     )
-
-
-class ResponseSchema11(ResponseSchema6, ResponseSchema7):
+    version: Version
     """
-    Service binding in API responses. Includes per-resource transport configuration via typed config.
+    Entity version in YYYY-MM-DD format.
     """
-
-    model_config = ConfigDict(
-        extra="allow",
-    )
+    spec: AnyUrl | None = None
+    """
+    URL to human-readable specification document.
+    """
+    schema_: AnyUrl | None = Field(None, alias="schema")
+    """
+    URL to JSON Schema defining this entity's structure and payloads.
+    """
+    id: str | None = None
+    """
+    Unique identifier for this entity instance. Used to disambiguate when multiple instances exist.
+    """
+    config: Config | None = Field(None, title="Embedded Transport Config")
+    """
+    Entity-specific configuration. Structure defined by each entity's schema.
+    """
+    transport: Literal["embedded"]
+    """
+    Transport protocol for this service binding.
+    """
+    endpoint: AnyUrl | None = None
+    """
+    Endpoint URL for this transport binding.
+    """
 
 
 class ResponseSchema2(
     RootModel[
-        ResponseSchema8 | ResponseSchema9 | ResponseSchema10 | ResponseSchema11
+        ResponseSchema | ResponseSchema4 | ResponseSchema5 | ResponseSchema6
     ]
 ):
-    """
-    Service binding in API responses. Includes per-resource transport configuration via typed config.
-    """
-
     model_config = ConfigDict(
         frozen=True,
     )
     root: (
-        ResponseSchema8 | ResponseSchema9 | ResponseSchema10 | ResponseSchema11
+        ResponseSchema | ResponseSchema4 | ResponseSchema5 | ResponseSchema6
     ) = Field(..., title="Service (Response Schema)")
     """
     Service binding in API responses. Includes per-resource transport configuration via typed config.
