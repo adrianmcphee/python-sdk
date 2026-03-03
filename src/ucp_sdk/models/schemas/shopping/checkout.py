@@ -22,11 +22,7 @@ from typing import Literal
 
 from pydantic import AnyUrl, AwareDatetime, BaseModel, ConfigDict
 
-<<<<<<< HEAD
 from .. import ucp as ucp_1
-=======
-from .._internal import ResponseCheckoutSchema
->>>>>>> main
 from . import payment as payment_1
 from .types import buyer as buyer_1
 from .types import context as context_1
@@ -40,11 +36,7 @@ class Checkout(BaseModel):
   model_config = ConfigDict(
     extra="allow",
   )
-<<<<<<< HEAD
   ucp: ucp_1.UcpMetadata
-=======
-  ucp: ResponseCheckoutSchema
->>>>>>> main
   id: str
   """
     Unique identifier of the checkout session.

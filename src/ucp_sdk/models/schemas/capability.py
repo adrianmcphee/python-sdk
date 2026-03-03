@@ -18,7 +18,6 @@
 
 from __future__ import annotations
 
-<<<<<<< HEAD
 from typing import Any
 
 from pydantic import AnyUrl, BaseModel, ConfigDict, Field, RootModel
@@ -95,20 +94,3 @@ class ResponseSchema(Base):
   model_config = ConfigDict(
     extra="allow",
   )
-=======
-from ._internal import (
-  Base,
-  BusinessSchema,
-  PlatformSchema,
-  ResponseSchema,
-  UcpCapability,
-)
-
-__all__ = [
-  "Base",
-  "BusinessSchema",
-  "PlatformSchema",
-  "ResponseSchema",
-  "UcpCapability",
-]
->>>>>>> main

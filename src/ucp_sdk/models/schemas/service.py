@@ -18,7 +18,6 @@
 
 from __future__ import annotations
 
-<<<<<<< HEAD
 from typing import Any, Literal
 
 from pydantic import AnyUrl, BaseModel, ConfigDict, Field, RootModel
@@ -353,78 +352,3 @@ class ResponseSchema2(
   """
     Service binding in API responses. Includes per-resource transport configuration via typed config.
     """
-=======
-from ._internal import Base_2 as Base
-from ._internal import (
-  BusinessSchema2,
-  BusinessSchema4,
-  BusinessSchema5,
-  BusinessSchema6,
-  BusinessSchema7,
-  BusinessSchema8,
-  BusinessSchema9,
-  BusinessSchema10,
-  BusinessSchema11,
-)
-from ._internal import BusinessSchema_2 as BusinessSchema
-from ._internal import (
-  PlatformSchema3,
-  PlatformSchema5,
-  PlatformSchema6,
-  PlatformSchema7,
-  PlatformSchema8,
-  PlatformSchema9,
-  PlatformSchema10,
-  PlatformSchema11,
-  PlatformSchema12,
-)
-from ._internal import PlatformSchema_2 as PlatformSchema
-from ._internal import (
-  ResponseSchema2,
-  ResponseSchema4,
-  ResponseSchema5,
-  ResponseSchema6,
-  ResponseSchema7,
-  ResponseSchema8,
-  ResponseSchema9,
-  ResponseSchema10,
-  ResponseSchema11,
-)
-from ._internal import ResponseSchema_2 as ResponseSchema
-from ._internal import UcpService
-
-__all__ = [
-  "Base",
-  "BusinessSchema",
-  "BusinessSchema10",
-  "BusinessSchema11",
-  "BusinessSchema2",
-  "BusinessSchema4",
-  "BusinessSchema5",
-  "BusinessSchema6",
-  "BusinessSchema7",
-  "BusinessSchema8",
-  "BusinessSchema9",
-  "PlatformSchema",
-  "PlatformSchema10",
-  "PlatformSchema11",
-  "PlatformSchema12",
-  "PlatformSchema3",
-  "PlatformSchema5",
-  "PlatformSchema6",
-  "PlatformSchema7",
-  "PlatformSchema8",
-  "PlatformSchema9",
-  "ResponseSchema",
-  "ResponseSchema10",
-  "ResponseSchema11",
-  "ResponseSchema2",
-  "ResponseSchema4",
-  "ResponseSchema5",
-  "ResponseSchema6",
-  "ResponseSchema7",
-  "ResponseSchema8",
-  "ResponseSchema9",
-  "UcpService",
-]
->>>>>>> main

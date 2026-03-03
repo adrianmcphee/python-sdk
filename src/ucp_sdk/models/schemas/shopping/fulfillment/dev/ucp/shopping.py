@@ -20,22 +20,11 @@ from __future__ import annotations
 
 from typing import Any
 
-<<<<<<< HEAD
-<<<<<<<< HEAD:src/ucp_sdk/models/schemas/shopping/fulfillment/dev/ucp/shopping.py
 from pydantic import ConfigDict, RootModel
-========
-from pydantic import RootModel
->>>>>>>> main:src/ucp_sdk/models/handlers/tokenization/openapi.py
 
 
 class Fulfillment(RootModel[Any]):
   model_config = ConfigDict(
     frozen=True,
   )
-=======
-from pydantic import RootModel
-
-
-class Fulfillment(RootModel[Any]):
->>>>>>> main
   root: Any

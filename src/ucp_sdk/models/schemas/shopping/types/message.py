@@ -18,11 +18,7 @@
 
 from __future__ import annotations
 
-<<<<<<< HEAD
 from pydantic import ConfigDict, Field, RootModel
-=======
-from pydantic import Field, RootModel
->>>>>>> main
 
 from . import message_error, message_info, message_warning
 
