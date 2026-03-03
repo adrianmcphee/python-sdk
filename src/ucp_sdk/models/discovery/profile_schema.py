@@ -18,11 +18,11 @@
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, RootModel
+from pydantic import AnyUrl, BaseModel, ConfigDict, Field, model_validator
 
-from ..schemas._internal import Base_3, BusinessSchema_3, PlatformSchema_3
+from ..schemas._internal import ReverseDomainName, Version
 
 
 class SigningKey(BaseModel):
@@ -70,44 +70,224 @@ class SigningKey(BaseModel):
     """
 
 
-class Base(BaseModel):
-  """Base discovery profile with shared properties for all profile types.
+class ServiceBinding(BaseModel):
+  """Transport-specific binding information for a service.
   """
 
   model_config = ConfigDict(
     extra="allow",
   )
-  ucp: Base_3
+  endpoint: AnyUrl | str | None = None
+  schema_: AnyUrl | str | None = Field(None, alias="schema")
+  """
+    URL to JSON schema for the service transport.
+    """
+
+
+class ServiceDescriptor(BaseModel):
+  """Service metadata normalized across legacy and current schema layouts.
+  """
+
+  model_config = ConfigDict(
+    extra="allow",
+  )
+  version: Version | None = None
+  spec: AnyUrl | str | None = None
+  rest: ServiceBinding | None = None
+  mcp: ServiceBinding | None = None
+  a2a: ServiceBinding | None = None
+  embedded: ServiceBinding | None = None
+
+
+def _normalize_service(value: Any) -> dict[str, Any]:
+  """Normalize service payloads from both legacy and generated schemas."""
+  if isinstance(value, list):
+    normalized: dict[str, Any] = {}
+    for entry in value:
+      if not isinstance(entry, dict):
+        continue
+      transport = entry.get("transport")
+      if transport in {"rest", "mcp", "a2a", "embedded"}:
+        normalized[transport] = {
+          k: v
+          for k, v in entry.items()
+          if k in {"endpoint", "schema", "config"} and v is not None
+        }
+      # Carry shared metadata once from the first entry that has it.
+      if "version" in entry and "version" not in normalized:
+        normalized["version"] = entry["version"]
+      if "spec" in entry and "spec" not in normalized:
+        normalized["spec"] = entry["spec"]
+    return normalized
+  if isinstance(value, dict):
+    return value
+  return {}
+
+
+class ServiceRegistry(BaseModel):
+  """Map of service names to service descriptors.
+  """
+
+  model_config = ConfigDict(
+    extra="allow",
+  )
+  root: dict[str, ServiceDescriptor] = Field(default_factory=dict)
+
+  @model_validator(mode="before")
+  @classmethod
+  def _normalize(cls, value: Any) -> dict[str, Any]:
+    if isinstance(value, dict) and "root" in value:
+      return value
+    if isinstance(value, dict):
+      return {"root": {str(k): _normalize_service(v) for k, v in value.items()}}
+    return {"root": {}}
+
+
+class Capability(BaseModel):
+  """Capability entry for legacy discovery payloads."""
+
+  model_config = ConfigDict(
+    extra="allow",
+  )
+  name: str | None = None
+  version: Version | None = None
+  spec: AnyUrl | str | None = None
+  schema_: AnyUrl | str | None = Field(None, alias="schema")
+  extends: str | None = Field(
+    None, pattern="^[a-z][a-z0-9]*(?:\\.[a-z][a-z0-9_]*)+$"
+  )
+
+
+def _normalize_capabilities(value: Any) -> list[dict[str, Any]]:
+  """Normalize capabilities from list or dict-keyed formats."""
+  if isinstance(value, list):
+    return [item for item in value if isinstance(item, dict)]
+  if isinstance(value, dict):
+    normalized: list[dict[str, Any]] = []
+    for capability_name, entries in value.items():
+      if isinstance(entries, list):
+        iterable = entries
+      else:
+        iterable = [entries]
+      for entry in iterable:
+        if not isinstance(entry, dict):
+          continue
+        normalized_entry = dict(entry)
+        normalized_entry.setdefault("name", str(capability_name))
+        normalized.append(normalized_entry)
+    return normalized
+  return []
+
+
+class PaymentHandlerResponse(BaseModel):
+  """Legacy-compatible payment handler declaration."""
+
+  model_config = ConfigDict(
+    extra="allow",
+  )
+  id: str | None = None
+  name: str | None = None
+  version: Version | None = None
+  spec: AnyUrl | str | None = None
+  config_schema: AnyUrl | str | None = None
+  instrument_schemas: list[AnyUrl | str] | None = None
+  config: dict[str, Any] | None = None
+
+
+class PaymentProfile(BaseModel):
+  """Legacy-compatible top-level payment discovery section."""
+
+  model_config = ConfigDict(
+    extra="allow",
+  )
+  handlers: list[PaymentHandlerResponse] | None = None
+
+
+class Base(BaseModel):
+  """Base discovery profile with shared properties for all profile types."""
+
+  model_config = ConfigDict(
+    extra="allow",
+  )
+  ucp: UcpMetadata
   signing_keys: list[SigningKey] | None = None
   """
     Public keys for signature verification (JWK format). Used to verify signed responses, webhooks, and other authenticated messages from this party.
     """
 
 
-class PlatformProfile(Base):
-  """Full discovery profile for platforms. Exposes complete service, capability, and payment handler registries.
-  """
+class UcpMetadata(BaseModel):
+  """Legacy-compatible UCP discovery payload."""
 
   model_config = ConfigDict(
     extra="allow",
   )
-  ucp: PlatformSchema_3 | None = None
+  version: Version
+  services: ServiceRegistry
+  capabilities: list[Capability] = Field(default_factory=list)
+  payment_handlers: dict[ReverseDomainName, list[dict[str, Any]]] | None = None
+
+  @model_validator(mode="before")
+  @classmethod
+  def _normalize(cls, value: Any) -> Any:
+    if not isinstance(value, dict):
+      return value
+    normalized = dict(value)
+    normalized["capabilities"] = _normalize_capabilities(
+      normalized.get("capabilities")
+    )
+    return normalized
+
+
+class PlatformProfile(Base):
+  """Full discovery profile for platforms."""
 
 
 class BusinessProfile(Base):
-  """Discovery profile for businesses/merchants. Subset of platform profile with business-specific configuration.
-  """
-
-  model_config = ConfigDict(
-    extra="allow",
-  )
-  ucp: BusinessSchema_3 | None = None
+  """Discovery profile for businesses/merchants."""
 
 
-class UcpDiscoveryProfile(RootModel[PlatformProfile | BusinessProfile]):
-  root: PlatformProfile | BusinessProfile = Field(
-    ..., title="UCP Discovery Profile"
-  )
+def _flatten_payment_handlers(
+  keyed_handlers: dict[str, Any] | None,
+) -> list[dict[str, Any]]:
+  if not isinstance(keyed_handlers, dict):
+    return []
+  flattened: list[dict[str, Any]] = []
+  for handler_name, entries in keyed_handlers.items():
+    iterable = entries if isinstance(entries, list) else [entries]
+    for entry in iterable:
+      if not isinstance(entry, dict):
+        continue
+      normalized = dict(entry)
+      normalized.setdefault("name", str(handler_name))
+      flattened.append(normalized)
+  return flattened
+
+
+class UcpDiscoveryProfile(Base):
+  payment: PaymentProfile | None = None
   """
     Schema for UCP discovery profiles. Business profiles are hosted at /.well-known/ucp; platform profiles are hosted at URIs advertised in request headers.
     """
+
+  @model_validator(mode="before")
+  @classmethod
+  def _normalize(cls, value: Any) -> Any:
+    if not isinstance(value, dict):
+      return value
+
+    # Accept prior RootModel-style payloads.
+    if "root" in value and isinstance(value["root"], dict):
+      value = dict(value["root"])
+    else:
+      value = dict(value)
+
+    ucp = value.get("ucp")
+    if isinstance(ucp, dict):
+      payment = value.get("payment")
+      if payment is None:
+        flattened = _flatten_payment_handlers(ucp.get("payment_handlers"))
+        if flattened:
+          value["payment"] = {"handlers": flattened}
+
+    return value
