@@ -32,6 +32,55 @@ class UcpCapability(RootModel[Any]):
     """
 
 
+class Version(RootModel[str]):
+  model_config = ConfigDict(
+    frozen=True,
+  )
+  root: str = Field(..., pattern="^\\d{4}-\\d{2}-\\d{2}$")
+  """
+    UCP version in YYYY-MM-DD format.
+    """
+
+
+class ReverseDomainName(RootModel[str]):
+  model_config = ConfigDict(
+    frozen=True,
+  )
+  root: str = Field(..., pattern="^[a-z][a-z0-9]*(?:\\.[a-z][a-z0-9_]*)+$")
+  """
+    Reverse-domain identifier (e.g., com.google.pay, dev.ucp.shopping.checkout)
+    """
+
+
+class Entity(BaseModel):
+  """Shared foundation for all UCP entities.
+  """
+
+  model_config = ConfigDict(
+    extra="allow",
+  )
+  version: Version
+  """
+    Entity version in YYYY-MM-DD format.
+    """
+  spec: AnyUrl | None = None
+  """
+    URL to human-readable specification document.
+    """
+  schema_: AnyUrl | None = Field(None, alias="schema")
+  """
+    URL to JSON Schema defining this entity's structure and payloads.
+    """
+  id: str | None = None
+  """
+    Unique identifier for this entity instance. Used to disambiguate when multiple instances exist.
+    """
+  config: dict[str, Any] | None = None
+  """
+    Entity-specific configuration. Structure defined by each entity's schema.
+    """
+
+
 class Base(Entity):
   model_config = ConfigDict(
     extra="allow",
@@ -405,49 +454,6 @@ class UcpMetadata(RootModel[Any]):
   root: Any = Field(..., title="UCP Metadata")
   """
     Protocol metadata for discovery profiles and responses. Uses slim schema pattern with context-specific required fields.
-    """
-
-
-class Version(RootModel[str]):
-  root: str = Field(..., pattern="^\\d{4}-\\d{2}-\\d{2}$")
-  """
-    UCP version in YYYY-MM-DD format.
-    """
-
-
-class ReverseDomainName(RootModel[str]):
-  root: str = Field(..., pattern="^[a-z][a-z0-9]*(?:\\.[a-z][a-z0-9_]*)+$")
-  """
-    Reverse-domain identifier (e.g., com.google.pay, dev.ucp.shopping.checkout)
-    """
-
-
-class Entity(BaseModel):
-  """Shared foundation for all UCP entities.
-  """
-
-  model_config = ConfigDict(
-    extra="allow",
-  )
-  version: Version
-  """
-    Entity version in YYYY-MM-DD format.
-    """
-  spec: AnyUrl | None = None
-  """
-    URL to human-readable specification document.
-    """
-  schema_: AnyUrl | None = Field(None, alias="schema")
-  """
-    URL to JSON Schema defining this entity's structure and payloads.
-    """
-  id: str | None = None
-  """
-    Unique identifier for this entity instance. Used to disambiguate when multiple instances exist.
-    """
-  config: dict[str, Any] | None = None
-  """
-    Entity-specific configuration. Structure defined by each entity's schema.
     """
 
 
